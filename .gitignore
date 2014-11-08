@@ -1,0 +1,17 @@
+# OS X
+.DS_Store
+
+# Vim
+*.swp
+
+# Test
+cpp/
+file_folder/
+pascal/
+py2/
+test/
+
+#
+*.txt
+*.mat
+
