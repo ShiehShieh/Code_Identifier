@@ -169,11 +169,14 @@ def main():
     (options, args) = parser.parse_args()
     exclude_file = ['.swp', '.mat', '']
 
-    with open('all_extension.txt', 'r') as extension_file:
-        all_extension = json.loads(extension_file.read())
+    try:
+        with open('all_extension.txt', 'r') as extension_file:
+            all_extension = json.loads(extension_file.read())
 
-    with open('all_keywords.txt', 'r') as keyword_file:
-        all_keywords = json.loads(keyword_file.read())
+        with open('all_keywords.txt', 'r') as keyword_file:
+            all_keywords = json.loads(keyword_file.read())
+    except IOError, e:
+        pass
 
     if options.multi:
         with open('data.txt', 'w') as output_file:
