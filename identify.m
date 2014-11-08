@@ -17,7 +17,7 @@ h2 = sigmoid(Theta2 * [1; h1]);
 [dummy, p] = max(h2);
 
 index = 1;
-all_extension = ''
+all_extension = '';
 fp = fopen('oct_extension.txt', 'r');
 str = fgetl(fp);
 while str != -1,
