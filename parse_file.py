@@ -15,16 +15,6 @@ USAGE   = "usage: %prog [options] arg1 arg2"
 VERSION = 'v1.0.0'
 
 
-def parse_one_file(filename, output_file, exclude_file):
-    """TODO: Docstring for parse_one_file.
-
-    :filename: TODO
-    :returns: TODO
-
-    """
-    pass
-
-
 def predict(filename, all_extension, all_keywords, exclude_file):
     """TODO: Docstring for predict.
 
@@ -148,6 +138,10 @@ def parse_multi_file(output_file, exclude_file):
 
     with open('all_keywords.txt', 'w') as keyword_file:
         keyword_file.write(json.dumps(all_keywords))
+
+    with open('oct_extension.txt', 'w') as oct_extension:
+        for extension in all_extension:
+            oct_extension.write(extension + os.linesep)
 
 
 def main():
