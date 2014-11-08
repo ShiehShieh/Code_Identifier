@@ -4,12 +4,14 @@
 # Vim
 *.swp
 
-# Test
+# Folder
 cpp/
 file_folder/
 pascal/
 py2/
 test/
+train/
+unknow/
 
 #
 *.txt

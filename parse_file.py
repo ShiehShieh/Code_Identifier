@@ -26,7 +26,7 @@ def predict(filename, all_extension, all_keywords, exclude_file):
     keywords    = {}
     single_file = [filename]
     index       = operator.indexOf(all_extension, os.path.splitext(filename)[1]) + 1
-    keywords    = fill_feature_dict(single_file, './test/')
+    keywords    = fill_feature_dict(single_file, './unknow/')
     result      = keyword_to_feature(keywords, all_keywords, index)
 
     with open('new_file.txt', 'w') as new_file:
@@ -64,7 +64,8 @@ def fill_feature_dict(all_files, folder, exclude_file=[]):
         if os.path.splitext(filename)[1] not in exclude_file:
             filename = folder + filename
             with open(filename, 'r') as code_file:
-                all_words = [x for x in re.findall('[A-Za-z]+', code_file.read()) if len(x) > 1 and len(x) <= 10]
+                processed = re.sub('\w+\s*[!=<>:;\'\"]', '', code_file.read())
+                all_words = [x for x in re.findall('[A-Za-z]+', processed) if len(x) > 1 and len(x) <= 10]
                 for word in all_words:
                     keywords.setdefault(word, 0)
                     keywords[word] += 1
@@ -98,8 +99,8 @@ def count_one_type(extension):
 
     """
     keywords  = {}
-    all_files = [x for x in os.listdir('./file_folder') if os.path.splitext(x)[1] == extension]
-    keywords  = fill_feature_dict(all_files, './file_folder/')
+    all_files = [x for x in os.listdir('./train') if os.path.splitext(x)[1] == extension]
+    keywords  = fill_feature_dict(all_files, './train/')
 
     return keywords
 
@@ -110,8 +111,8 @@ def parse_multi_file(output_file, exclude_file):
 
     """
     all_keywords  = {}
-    all_files     = [x for x in os.listdir('./file_folder') if x[0] != '.']
-    all_keywords  = fill_feature_dict(all_files, './file_folder/', exclude_file)
+    all_files     = [x for x in os.listdir('./train') if x[0] != '.']
+    all_keywords  = fill_feature_dict(all_files, './train/', exclude_file)
     temp          = [os.path.splitext(x)[1] for x in all_files if x[0] != '.']
     all_extension = list(set(temp))
 
@@ -128,7 +129,7 @@ def parse_multi_file(output_file, exclude_file):
     for one in all_files:
         single_list = [one]
         index       = operator.indexOf(all_extension, os.path.splitext(one)[1]) + 1
-        keywords    = fill_feature_dict(single_list, './file_folder/')
+        keywords    = fill_feature_dict(single_list, './train/')
         result      = keyword_to_feature(keywords, all_keywords, index)
 
         output_file.write(result + os.linesep)
