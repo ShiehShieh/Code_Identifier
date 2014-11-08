@@ -26,10 +26,11 @@ while str != -1,
 	++index;
 end
 
-dummy
-p
-y
+dummy;
+p;
+y;
 
+fprintf('The correct rate is: %f\n', dummy)
 fprintf('The extension of the file should be "%s"\n', ...
 	all_extension(p, :))
 

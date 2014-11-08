@@ -18,5 +18,5 @@ testy = data(:, end);
 
 pred = predict(Theta1, Theta2, testX);
 
-fprintf('\nTest Set Accuracy: %f\n', mean(double(pred == testy)) * 100);
+fprintf('\nTesting Set Accuracy: %f\n', mean(double(pred == testy)) * 100);
 
