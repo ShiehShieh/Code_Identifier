@@ -2,6 +2,9 @@
 # encoding: utf-8
 
 
+import cmath
+import json
+import operator
 from scipy import io
 from numpy import dot
 from numpy import loadtxt
@@ -31,6 +34,16 @@ class Argument(object):
         self.num_labels = io.loadmat(config_file)['num_labels']
         self.theta1 = io.loadmat(weight_file)['Theta1']
         self.theta2 = io.loadmat(weight_file)['Theta2']
+
+
+def sigmoid(z):
+    """TODO: Docstring for sigmoid.
+
+    :z: TODO
+    :returns: TODO
+
+    """
+    return 1 / (1 + cmath.e**(-z))
 
 
 def load_argument(weight_file, config_file):
@@ -79,7 +92,15 @@ def main():
     x = input_data[0:-1]
     y = input_data[-1]
 
-    print dot(argument.theta2, array([1] + list(dot(argument.theta1, array([1] + list(x))))))
+    with open('all_extension.txt', 'r') as extension_file:
+        all_extension = json.loads(extension_file.read())
+
+    result =  sigmoid(dot(argument.theta2, sigmoid(array([1] + list(dot(argument.theta1, array([1] + list(x))))))))
+
+    rate = max(list(result))
+
+    print 'The correct rate is: %f' %(rate)
+    print 'The extension of the file should be \"%s\"' %(all_extension[operator.indexOf(result, rate)])
 
 if __name__ == '__main__':
     main()
