@@ -81,7 +81,8 @@ Theta2 = reshape(nn_params((1 + (hidden_layer_size * (input_layer_size + 1))):en
 fprintf('Program paused. Press enter to continue.\n');
 pause;
 
-save -binary weights.mat Theta1 Theta2
+save -binary -v7 weights.mat Theta1 Theta2
+save -binary -v7 config.mat input_layer_size hidden_layer_size num_labels
 
 
 % fprintf('\nVisualizing Neural Network... \n')

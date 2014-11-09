@@ -116,16 +116,6 @@ def parse_multi_file(output_file, exclude_file):
     temp          = [os.path.splitext(x)[1] for x in all_files if x[0] != '.']
     all_extension = list(set(temp))
 
-#    for index, extension in enumerate(all_extension):
-#        result = ''
-#        keywords = count_one_type(extension)
-#        for key in all_keywords:
-#            result += str(keywords.setdefault(key, 0)) + ','
-#
-#        result += str(index + 1)
-#
-#        output_file.write(result + os.linesep)
-
     for one in all_files:
         single_list = [one]
         index       = operator.indexOf(all_extension, os.path.splitext(one)[1]) + 1
@@ -156,7 +146,7 @@ def main():
             help='If this symbol is set, train the algorithem by all file \
             in this directory.')
     parser.add_option('-f', '--file', action='store', type='string',
-            help='the file you want to use to feed the neural netword.',
+            help='the file you want to make a prediction.',
             dest='filename')
     parser.add_option('-t', '--test', action='store_true', dest='test',
             help='Test.')
