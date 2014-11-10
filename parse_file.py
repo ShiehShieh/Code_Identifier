@@ -7,6 +7,11 @@ import os
 import sys
 import json
 import operator
+import cmath
+from scipy import io
+from numpy import dot
+from numpy import loadtxt
+from numpy import array
 from operator import itemgetter
 from optparse import OptionParser
 
@@ -15,7 +20,97 @@ USAGE   = "usage: %prog [options] arg1 arg2"
 VERSION = 'v1.0.0'
 
 
-def predict(filename, all_extension, all_keywords, exclude_file):
+class Argument(object):
+
+    """Docstring for Argument. """
+
+    def __init__(self, weight_file, config_file):
+        """TODO: to be defined1.
+
+        :weight_file: TODO
+        :config_file: TODO
+
+        """
+        self.weight_file = weight_file
+        self.config_file = config_file
+        self.input_layer_size = io.loadmat(config_file)['input_layer_size']
+        self.hidden_layer_size = io.loadmat(config_file)['hidden_layer_size']
+        self.num_labels = io.loadmat(config_file)['num_labels']
+        self.theta1 = io.loadmat(weight_file)['Theta1']
+        self.theta2 = io.loadmat(weight_file)['Theta2']
+
+
+def sigmoid(z):
+    """TODO: Docstring for sigmoid.
+
+    :z: TODO
+    :returns: TODO
+
+    """
+    return 1 / (1 + cmath.e**(-z))
+
+
+def load_argument(weight_file, config_file):
+    """TODO: Docstring for load_weight.
+
+    :weight_file: TODO
+    :config_file: TODO
+    :returns: TODO
+
+    """
+    argument = Argument(weight_file, config_file)
+
+    return argument
+
+
+def get_options():
+    """TODO: Docstring for get_options.
+    :returns: TODO
+
+    """
+    parser = OptionParser(usage=USAGE, version=VERSION)
+
+    parser.add_option('-w', '--weight', action='store', type='string',
+            help='The weight file.',
+            dest='weight_file')
+    parser.add_option('-c', '--config', action='store', type='string',
+            help='The config file.',
+            dest='config_file')
+    parser.add_option('-f', '--file', action='store', type='string',
+            help='the file you want to make a prediction.',
+            dest='filename')
+    parser.add_option('-m', '--multi', action='store_true', dest='multi',
+            help='If this symbol is set, train the algorithem by all file \
+            in this directory.')
+    parser.add_option('-t', '--test', action='store_true', dest='test',
+            help='Test.')
+
+    return parser.parse_args()
+
+
+def predict(options, args):
+    """TODO: Docstring for main.
+    :returns: TODO
+
+    """
+    argument = load_argument(options.weight_file, options.config_file)
+
+    input_data = loadtxt('unknow.txt', delimiter=',')
+    x = input_data[0:-1]
+    y = input_data[-1]
+
+    with open('all_extension.txt', 'r') as extension_file:
+        all_extension = json.loads(extension_file.read())
+
+    result =  sigmoid(dot(argument.theta2, sigmoid(array([1] + list(dot(argument.theta1, array([1] + list(x))))))))
+
+    rate = max(list(result))
+
+    print 'The correct rate is: %f' %(rate)
+    print 'The extension of the file should be \"%s\"' %(all_extension[operator.indexOf(result, rate)])
+
+
+def create_predict_file(filename, all_extension, all_keywords, exclude_file):
     """TODO: Docstring for predict.
 
     :filename: TODO
@@ -29,8 +124,8 @@ def predict(filename, all_extension, all_keywords, exclude_file):
     keywords    = fill_feature_dict(single_file, './unknow/')
     result      = keyword_to_feature(keywords, all_keywords, index)
 
-    with open('new_file.txt', 'w') as new_file:
-        new_file.write(result + os.linesep)
+    with open('unknow.txt', 'w') as unknow_file:
+        unknow_file.write(result + os.linesep)
 
 
 def test(all_extension, all_keywords, exclude_file=[]):
@@ -64,7 +159,11 @@ def fill_feature_dict(all_files, folder, exclude_file=[]):
         if os.path.splitext(filename)[1] not in exclude_file:
             filename = folder + filename
             with open(filename, 'r') as code_file:
-                processed = re.sub('\w+\s*[!=<>:;\'\"]', '', code_file.read())
+                # remove the string and word in the right-hand side of [!=<>:;]
+                processed = re.sub('\w+\s*[!=<>:;]', '', code_file.read())
+                processed = re.sub('\'.*\'', '', processed)
+                processed = re.sub('\".*\"', '', processed)
+
                 all_words = [x for x in re.findall('[A-Za-z]+', processed) if len(x) > 1 and len(x) <= 10]
                 for word in all_words:
                     keywords.setdefault(word, 0)
@@ -140,18 +239,8 @@ def main():
     :returns: TODO
 
     """
-    parser = OptionParser(usage=USAGE, version=VERSION)
+    (options, args) = get_options()
 
-    parser.add_option('-m', '--multi', action='store_true', dest='multi',
-            help='If this symbol is set, train the algorithem by all file \
-            in this directory.')
-    parser.add_option('-f', '--file', action='store', type='string',
-            help='the file you want to make a prediction.',
-            dest='filename')
-    parser.add_option('-t', '--test', action='store_true', dest='test',
-            help='Test.')
-
-    (options, args) = parser.parse_args()
     exclude_file = ['.swp', '.mat', '']
 
     try:
@@ -170,10 +259,11 @@ def main():
     elif options.test:
         test(all_extension, all_keywords)
     else:
-        predict(options.filename,
+        create_predict_file(options.filename,
                 all_extension,
                 all_keywords,
                 exclude_file)
+        predict(options, args)
 
 if __name__ == '__main__':
     main()
