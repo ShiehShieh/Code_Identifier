@@ -4,7 +4,6 @@
 
 import re
 import os
-import sys
 import json
 import operator
 import cmath
@@ -12,7 +11,6 @@ from scipy import io
 from numpy import dot
 from numpy import loadtxt
 from numpy import array
-from operator import itemgetter
 from optparse import OptionParser
 
 
@@ -48,6 +46,17 @@ def sigmoid(z):
 
     """
     return 1 / (1 + cmath.e**(-z))
+
+
+def rand_initialize_weights(L_in, L_out):
+    """TODO: Docstring for randInitializeWeights.
+
+    :L_in: TODO
+    :L_out: TODO
+    :returns: TODO
+
+    """
+    pass
 
 
 def load_argument(weight_file, config_file):
@@ -166,8 +175,7 @@ def fill_feature_dict(all_files, folder, exclude_file=[]):
 
                 all_words = [x for x in re.findall('[A-Za-z]+', processed) if len(x) > 1 and len(x) <= 10]
                 for word in all_words:
-                    keywords.setdefault(word, 0)
-                    keywords[word] += 1
+                    keywords.setdefault(word, 1)
 
     return keywords
 

@@ -16,6 +16,10 @@ testy = data(:, end);
 % p
 % y
 
+nn_params = [Theta1(:); Theta2(:)];
+
+nnCostFunction(nn_params, size(testX, 2), 50, 4, testX, testy, 1)
+
 pred = predict(Theta1, Theta2, testX);
 
 fprintf('\nTesting Set Accuracy: %f\n', mean(double(pred == testy)) * 100);

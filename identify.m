@@ -2,7 +2,7 @@ clear ; close all; clc
 
 load('weights.mat');
 
-data = load('new_file.txt');
+data = load('unknow.txt');
 x = data(1:end - 1);
 y = data(end);
 

@@ -12,7 +12,7 @@ num_set = unique(y);
 
 m = size(y, 1);
 input_layer_size = size(X, 2);  % Depending on the dataset
-hidden_layer_size = 25;         % 25 hidden units
+hidden_layer_size = 50;         % 25 hidden units
 num_labels = size(num_set, 1);  % Depending on the dataset
                                 % (note that we have mapped "0" to label 10)
 
@@ -25,29 +25,6 @@ initial_Theta2 = randInitializeWeights(hidden_layer_size, num_labels);
 
 % Unroll parameters
 initial_nn_params = [initial_Theta1(:) ; initial_Theta2(:)];
-
-
-fprintf('\nChecking Backpropagation... \n');
-
-%  Check gradients by running checkNNGradients
-% checkNNGradients;
-
-fprintf('\nProgram paused. Press enter to continue.\n');
-pause;
-
-
-fprintf('\nChecking Backpropagation (w/ Regularization) ... \n')
-
-%  Check gradients by running checkNNGradients
-lambda = 3;
-% checkNNGradients(lambda);
-
-% Also output the costFunction debugging values
-% debug_J  = nnCostFunction(nn_params, input_layer_size, ...
-%                           hidden_layer_size, num_labels, X, y, lambda);
-
-fprintf('Program paused. Press enter to continue.\n');
-pause;
 
 
 fprintf('\nTraining Neural Network... \n')
@@ -85,12 +62,9 @@ save -binary -v7 weights.mat Theta1 Theta2
 save -binary -v7 config.mat input_layer_size hidden_layer_size num_labels
 
 
-% fprintf('\nVisualizing Neural Network... \n')
+nn_params = [Theta1(:); Theta2(:)];
 
-% displayData(Theta1(:, 2:end));
-
-% fprintf('\nProgram paused. Press enter to continue.\n');
-% pause;
+nnCostFunction(nn_params, input_layer_size, hidden_layer_size, num_labels, X, y, lambda)
 
 pred = predict(Theta1, Theta2, X);
 
