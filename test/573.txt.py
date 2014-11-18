@@ -1,0 +1,1 @@
+print sorted([[i,sum(map(int,raw_input().split()))]for i in range(7)],key=lambda x:-x[1])[0][0]+1

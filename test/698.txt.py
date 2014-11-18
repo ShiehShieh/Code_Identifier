@@ -1,0 +1,10 @@
+a=input()
+b=input()
+a=float(a)
+b=float(b)
+a/=100
+b/=100
+x=1
+while(abs(int(x*a)-int(x*b))!=1):
+    x+=1
+print x

@@ -10,8 +10,8 @@ file_folder/
 pascal/
 py2/
 python/
-test/
-train/
+# test/
+# train/
 unknow/
 coffee/
 java/

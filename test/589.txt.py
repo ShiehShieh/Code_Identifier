@@ -1,0 +1,1 @@
+k=map(int,raw_input().split());l=input()+30;print len(filter(lambda x:x<=l,k))
