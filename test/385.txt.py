@@ -1,1 +1,0 @@
-print sum(map(lambda x: int(x), raw_input().split(' ')))

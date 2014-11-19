@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+##
+# @file parse_file.py
+# @brief 
+# @author Zhijie Xie
+# @version 1.0.0
+# @date 2014-11-19
+
 
 import re
 import os

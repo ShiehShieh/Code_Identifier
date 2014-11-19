@@ -1,1 +1,0 @@
-print (lambda t:int(t[0])+int(t[1]))(raw_input().split(' '))

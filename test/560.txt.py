@@ -1,1 +1,0 @@
-for k in[map(int,raw_input().split())for i in range(input())]:print['NO','YES'][(k[1]+k[2])%2==0 or (k[2]==30 and k[1]%8==1)]
