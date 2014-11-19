@@ -22,6 +22,9 @@ js/
 *.txt
 *.mat
 
+# python bytecode
+*.pyc
+
 # octave
 *octave-workspace*
 
