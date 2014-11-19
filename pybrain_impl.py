@@ -4,7 +4,7 @@ from pybrain.supervised.trainers import BackpropTrainer
 from pybrain.structure import TanhLayer, SigmoidLayer
 from pybrain.structure import SoftmaxLayer
 
-from debug.debug import debug, pdb
+from debug import debug, pdb
 
 @debug
 def get_data_set(filename='data.txt'):
