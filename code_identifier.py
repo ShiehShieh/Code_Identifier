@@ -2,6 +2,9 @@
 # encoding: utf-8
 
 
+import os
+import json
+import operator
 import theano
 import numpy
 import scipy
@@ -9,20 +12,22 @@ import scipy.io as sio
 import theano.tensor as T
 from functools import wraps
 from optparse import OptionParser
+from theano.tensor.shared_randomstreams import RandomStreams
 
 
 # Global variable.
-FILESIZE = 100000
+FILESIZE  = 10000
+TARGET    = 1000
+ITERATION = 100
 
 
 USAGE   = "usage: %prog [options] arg1 arg2"
 VERSION = 'v1.0.0'
 
 
-def wrap_cost_func(activate, X, y, weight_decay, beta, rho):
+def wrap_cost_func(X, y, weight_decay, beta, rho):
     """TODO: Docstring for wrap_cost_func.
 
-    :activate: TODO
     :X: TODO
     :y: TODO
     :weight_decay: TODO
@@ -44,7 +49,7 @@ def wrap_cost_func(activate, X, y, weight_decay, beta, rho):
             :returns: TODO
 
             """
-            J, grads = cost_func(params, activate, X, y, weight_decay, beta, rho)
+            J, grads = cost_func(params, X, y, weight_decay, beta, rho)
 
             return J, grads
 
@@ -60,20 +65,24 @@ def get_options():
     """
     parser = OptionParser(usage=USAGE, version=VERSION)
 
+    parser.add_option('-f', '--feature', action='store', type='int',
+            help='The number of raw feature', default=FILESIZE,
+            dest='n')
+    parser.add_option('-t', '--target', action='store', type='int',
+            help='The number of target feature', default=TARGET,
+            dest='target_n')
+    parser.add_option('-i', '--iteration', action='store', type='int',
+            help='The number of iteration', default=ITERATION,
+            dest='iteration')
     parser.add_option('-w', '--weight', action='store', type='string',
             help='The weight file.',
             dest='weight_file')
     parser.add_option('-c', '--config', action='store', type='string',
             help='The config file.',
             dest='config_file')
-    parser.add_option('-f', '--file', action='store', type='string',
-            help='the file you want to make a prediction.',
-            dest='filename')
     parser.add_option('-m', '--multi', action='store_true', dest='multi',
             help='If this symbol is set, train the algorithem by all file \
             in this directory.')
-    parser.add_option('-t', '--test', action='store_true', dest='test',
-            help='Test.')
 
     return parser.parse_args()
 
@@ -92,6 +101,46 @@ def kl_divergence(rho, rho_cap):
     return kl
 
 
+def initial_params(in_out_degree):
+    """TODO: Docstring for initial_params.
+
+    :in_out_degree: TODO
+    :returns: TODO
+
+    """
+    print 'Initiating params.'
+
+    params      = []
+    fan_in      = T.dscalar('fan_in')
+    fan_out     = T.dscalar('fan_out')
+    epsilon     = T.sqrt(6 / (fan_in + fan_out))
+    cal_eps     = theano.function([fan_in, fan_out], epsilon)
+
+    for index in range(len(in_out_degree) - 1):
+        in_degree  = in_out_degree[index]
+        out_degree = in_out_degree[index + 1]
+        eps        = cal_eps(in_degree, out_degree)
+        ran_matrix = theano.shared(
+                    value=numpy.random.random((out_degree, in_degree)) * 2 * int(eps) - int(eps),
+                    borrow=True
+                )
+
+        params.append(ran_matrix)
+
+    for index in range(len(in_out_degree) - 1):
+        for counter in range(in_out_degree[index + 1]):
+            temp = theano.shared(
+                        value=numpy.zeros((in_out_degree[index + 1], options.m),
+                        dtype=theano.config.floatX),
+                        borrow=True
+                    )
+        params.append(temp)
+
+    print 'Done.'
+
+    return params
+
+
 def gradient_descent(cost_func,
                     params,
                     options):
@@ -103,22 +152,84 @@ def gradient_descent(cost_func,
     :returns: TODO
 
     """
-    for i in range(options.times):
+    for i in range(options.iteration):
+        print 'Iteration %d...' %(i)
         J, grads = cost_func(params)
-        for index, param in grads:
-            params[index] = params[index] - param
+        print J
+        for index, param in enumerate(grads):
+            print param
+            print '+++++'
+            print params[index].get_value()
+            print '-----'
+            params[index].set_value(params[index].get_value() - param)
+            print params[index].get_value()
+            print '====='
 
 
-def auto_encode(row_num, column_num, raw_features):
+def auto_encode(options):
     """TODO: Docstring for auto_encode.
 
     :row_num: TODO
     :column_num: TODO
     :raw_features: TODO
+    :options: TODO
     :returns: TODO
 
     """
-    pass
+    X, y          = load_data('./train/ae/', options)
+    X             = theano.shared(value=X, name='X')
+    y             = theano.shared(value=y, name='y')
+    weight_decay  = theano.shared(value=1, name='weight_decay')
+    beta          = theano.shared(value=0.5, name='beta')
+    rho           = theano.shared(value=0.05, name='rho')
+    in_out_degree = [options.n, options.target_n, options.n]
+    init_params   = initial_params(in_out_degree)
+
+    @wrap_cost_func(X, y, weight_decay, beta, rho)
+    def cost_func_ld(params,
+                    X, non_y,
+                    weight_decay,
+                    beta, rho):
+        """TODO: Docstring for cost_func_ld.
+
+        :params: TODO
+        :X: TODO
+        :non_y: TODO
+        :weight_decay: TODO
+        :returns: TODO
+
+        """
+        # params in theano.
+        trans_y         = X.T
+        weights, bs     = params[0 : len(params) / 2], params[len(params) / 2 : ]
+        bias1           = bs[0]
+        bias2           = bs[1]
+        theta1          = weights[0]
+        theta2          = weights[1]
+        m               = X.get_value().shape[0]
+
+        neuron          = T.nnet.sigmoid(T.dot(theta1, trans_y) + bias1)
+
+        prediction = T.dot(theta2, neuron) + bias2
+        rho_cap    = T.sum(neuron, 1) / m
+
+        J          = (1 / m) * T.sum((prediction - y) ** 2) \
+                        + (weight_decay / (2 * m)) * (T.sum(theta1) + T.sum(theta2)) \
+                        + beta * kl_divergence(rho, rho_cap)
+
+        collector  = theano.function([], [J,
+                                        T.grad(J, theta1),
+                                        T.grad(J, theta2),
+                                        T.grad(J, bias1),
+                                        T.grad(J, bias2)])
+
+        all_result  = collector()
+
+        J, grads    = all_result[0], all_result[1:]
+
+        return J, grads
+
+    gradient_descent(cost_func_ld, init_params, options)
 
 
 def softmax_classify(input_num, output_num, input_data):
@@ -133,54 +244,44 @@ def softmax_classify(input_num, output_num, input_data):
     pass
 
 
-def load_data():
+def load_data(input_path, options):
     """TODO: Docstring for load_data.
     :returns: TODO
 
     """
-    pass
+    X             = []
+    y             = []
+    all_files     = [x for x in os.listdir(input_path) if x[0] != '.']
+    temp          = set([os.path.splitext(x)[1] for x in all_files])
+    all_extension = {}
+    options.m     = len(all_files)
+
+    for file_name in all_files:
+        extension = os.path.splitext(file_name)[1]
+        all_extension.setdefault(extension, operator.indexOf(temp, extension))
+
+        with open(input_path + file_name, 'r') as a_file:
+            raw_data = [ord(x) for x in a_file.read(options.n)]
+            if len(raw_data) < options.n:
+                raw_data = raw_data + [32] * (options.n - len(raw_data))
+
+            X.append(raw_data)
+            y.append(all_extension[extension])
+
+    with open('./parameters/all_extension.txt', 'w') as extension_file:
+        extension_file.write(json.dumps(all_extension))
+
+    X, y = numpy.array(X), numpy.array(y)
+
+    return X, y
 
 
 if __name__ == '__main__':
     (options, args) = get_options()
 
-    value           = T.dmatrix('value')
-    result          = 1 / (1 + T.exp(value))
-    sigmoid         = theano.function([value], result)
+    theano.config.exception_verbosity = 'high'
 
-    X, y            = load_data()
-    weight_decay    = 0.5
-    beta, rho       = 0.5, 0.05
+    with open('./parameters/all_extension.txt', 'r') as extension_file:
+        all_extension = json.loads(extension_file.read())
 
-    @wrap_cost_func(sigmoid, X, y, weight_decay, beta, rho)
-    def cost_func_ld(params,
-                    activate,
-                    X, non_y,
-                    weight_decay,
-                    beta, rho):
-        """TODO: Docstring for cost_func_ld.
-
-        :params: TODO
-        :X: TODO
-        :non_y: TODO
-        :weight_decay: TODO
-        :returns: TODO
-
-        """
-        weights, bs = params[0 : len(params) / 2], params[len(params) / 2 : ]
-        bias1       = bs[0]
-        bias2       = bs[1]
-        theta1      = weights[0]
-        theta2      = weights[1]
-        m           = T.shape(X)[0]
-        y           = T.transpose(X)
-        neuron      = activate(T.dot(theta1, T.transpose(X)) + bias1)
-        prediction  = T.dot(theta2, neuron) + bias2
-        rho_cap     = T.sum(neuron, 0) / m
-
-        J           = (1 / m) * T.sum((prediction - y) ** 2) \
-                        + (weight_decay / (2 * m)) * (T.sum(theta1) + T.sum(theta2)) \
-                        + beta * kl_divergence(rho, rho_cap)
-        grads       = [T.grad(J, theta1), T.grad(J, theta2), T.grad(J, bias1), T.grad(J, bias2)]
-
-        return J, grads
+    auto_encode(options)
