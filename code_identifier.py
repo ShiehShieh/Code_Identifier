@@ -5,6 +5,7 @@
 import os
 import json
 import operator
+import time
 import theano
 import numpy
 import scipy
@@ -19,6 +20,8 @@ from theano.tensor.shared_randomstreams import RandomStreams
 FILESIZE  = 10000
 TARGET    = 1000
 ITERATION = 100
+ALPHA     = 0.001
+SPARSITY  = 0.05
 
 
 USAGE   = "usage: %prog [options] arg1 arg2"
@@ -74,12 +77,15 @@ def get_options():
     parser.add_option('-i', '--iteration', action='store', type='int',
             help='The number of iteration', default=ITERATION,
             dest='iteration')
-    parser.add_option('-w', '--weight', action='store', type='string',
-            help='The weight file.',
-            dest='weight_file')
-    parser.add_option('-c', '--config', action='store', type='string',
-            help='The config file.',
-            dest='config_file')
+    parser.add_option('-l', '--learningrate', action='store', type='float',
+            help='The speed of learning', default=ALPHA,
+            dest='alpha')
+    parser.add_option('-s', '--sparsity', action='store', type='float',
+            help='The value of sparsity parameter', default=SPARSITY,
+            dest='beta')
+    parser.add_option('-T', '--task', action='store', type='string',
+            help='The task.', default='',
+            dest='task')
     parser.add_option('-m', '--multi', action='store_true', dest='multi',
             help='If this symbol is set, train the algorithem by all file \
             in this directory.')
@@ -95,8 +101,8 @@ def kl_divergence(rho, rho_cap):
     :returns: TODO
 
     """
-    kl = T.sum(rho * T.log2(rho / rho_cap) \
-            + (1 - rho) * T.log2((1 - rho) / (1 - rho_cap)))
+    kl = T.sum(rho * T.log2(rho / rho_cap)
+            + (1.5 - rho) * T.log2((1.5 - rho) / (1.5 - rho_cap)))
 
     return kl
 
@@ -121,7 +127,7 @@ def initial_params(in_out_degree):
         out_degree = in_out_degree[index + 1]
         eps        = cal_eps(in_degree, out_degree)
         ran_matrix = theano.shared(
-                    value=numpy.random.random((out_degree, in_degree)) * 2 * int(eps) - int(eps),
+                    value=numpy.random.random((out_degree, in_degree)) * 2 * eps - eps,
                     borrow=True
                 )
 
@@ -156,14 +162,11 @@ def gradient_descent(cost_func,
         print 'Iteration %d...' %(i)
         J, grads = cost_func(params)
         print J
+        print '-----\n\n'
         for index, param in enumerate(grads):
-            print param
-            print '+++++'
-            print params[index].get_value()
-            print '-----'
-            params[index].set_value(params[index].get_value() - param)
-            print params[index].get_value()
-            print '====='
+            params[index].set_value(params[index].get_value() - options.alpha *  param)
+
+    print 'Final cost is %f .' %(J)
 
 
 def auto_encode(options):
@@ -206,16 +209,16 @@ def auto_encode(options):
         bias2           = bs[1]
         theta1          = weights[0]
         theta2          = weights[1]
-        m               = X.get_value().shape[0]
+        m               = theano.shared(value=X.get_value().shape[0], name='m')
 
-        neuron          = T.nnet.sigmoid(T.dot(theta1, trans_y) + bias1)
+        neuron     = T.nnet.sigmoid(T.dot(theta1, trans_y) + bias1)
 
         prediction = T.dot(theta2, neuron) + bias2
         rho_cap    = T.sum(neuron, 1) / m
 
-        J          = (1 / m) * T.sum((prediction - y) ** 2) \
+        J          = (1.0 / m) * T.sum((prediction - y) ** 2) \
                         + (weight_decay / (2 * m)) * (T.sum(theta1) + T.sum(theta2)) \
-                        + beta * kl_divergence(rho, rho_cap)
+                        + options.beta * kl_divergence(rho, rho_cap)
 
         collector  = theano.function([], [J,
                                         T.grad(J, theta1),
@@ -229,7 +232,57 @@ def auto_encode(options):
 
         return J, grads
 
+    start_time = time.clock()
+    
     gradient_descent(cost_func_ld, init_params, options)
+
+    end_time = time.clock()
+
+    sio.savemat('./parameters/auto_encoder', {
+            'weight': init_params[0].get_value(),
+            'bias': init_params[2].get_value()})
+
+    print 'Training time of sparse linear decoder: %f minutes.' %((end_time - start_time) / 60.0)
+
+
+def cal_origin(index_activ, W, options):
+    """TODO: Docstring for cal_origin.
+
+    :index_activ: TODO
+    :encode_params: TODO
+    :options: TODO
+    :returns: TODO
+
+    """
+    result = ''
+    all_x  = T.abs_(W[index_activ]) / T.sqrt(T.sum(W[index_activ]) ** 2)
+    cal_x  = theano.function([], all_x)
+    raw_x  = cal_x()
+
+    print raw_x
+
+    for element in raw_x.flat:
+        result = result + unichr(abs(int(element * 4294967296 * 2 - 4294967296)))
+
+    return result
+
+
+def visualize_auto_encoder(options):
+    """TODO: Docstring for visualize_auto_encoder.
+
+    :options: TODO
+    :returns: TODO
+
+    """
+    encode_params = theano.shared(
+            value=sio.loadmat('./parameters/auto_encoder')['weight'],
+        )
+
+    for index_activ in range(options.target_n):
+        result_string = cal_origin(index_activ, encode_params, options)
+
+        with open('./output/visualize' + str(index_activ) + '.txt', 'w') as visualize_auto_encoder:
+            visualize_auto_encoder.write(result_string)
 
 
 def softmax_classify(input_num, output_num, input_data):
@@ -279,9 +332,14 @@ def load_data(input_path, options):
 if __name__ == '__main__':
     (options, args) = get_options()
 
-    theano.config.exception_verbosity = 'high'
+    # theano.config.exception_verbosity = 'high'
 
     with open('./parameters/all_extension.txt', 'r') as extension_file:
         all_extension = json.loads(extension_file.read())
 
-    auto_encode(options)
+    if options.task == 'autoencoder':
+        auto_encode(options)
+    elif options.task == 'visualization':
+        visualize_auto_encoder(options)
+    else:
+        pass
