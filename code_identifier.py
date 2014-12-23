@@ -129,7 +129,7 @@ def initial_params(in_out_degree):
     cal_eps     = theano.function([fan_in, fan_out], epsilon)
 
     for index in range(len(in_out_degree) - 1):
-        in_degree  = in_out_degree[index]
+        in_degree  = in_out_degree[index] + 1
         out_degree = in_out_degree[index + 1]
         eps        = cal_eps(in_degree, out_degree)
         ran_matrix = theano.shared(
@@ -175,6 +175,29 @@ def gradient_descent(cost_func,
     print 'Final cost is %f .' %(J)
 
 
+def add_bias_unit(X, mod='h'):
+    """TODO: Docstring for add_bias_unit.
+
+    :X: TODO
+    :mod: TODO
+    :returns: TODO
+
+    """
+    temp = []
+    if mod == 'h':
+        for index in range(X.shape[0]):
+            temp.append([1.0])
+        temp = numpy.array(temp)
+        X_with_bias = numpy.hstack((temp, X))
+    elif mod == 'v':
+        for index in range(X.shape[1]):
+            temp = temp + [1.0]
+        temp = numpy.array(temp)
+        X_with_bias = numpy.vstack((temp, X))
+
+    return X_with_bias
+
+
 def auto_encode(X, y, options):
     """TODO: Docstring for auto_encode.
 
@@ -185,13 +208,15 @@ def auto_encode(X, y, options):
     :returns: TODO
 
     """
-    X             = theano.shared(value=X, name='X')
+    X             = theano.shared(value=add_bias_unit(X), name='X')
     y             = theano.shared(value=y, name='y') # temp
     weight_decay  = theano.shared(value=options.decay, name='weight_decay')
     beta          = theano.shared(value=options.beta, name='beta')
     rho           = theano.shared(value=options.rho, name='rho')
     in_out_degree = [options.n, options.target_n, options.n]
     init_params   = initial_params(in_out_degree)
+    m             = theano.shared(value=X.get_value().shape[0], name='m')
+    bias_unit     = theano.shared(value=numpy.ones((1, m.get_value())), name='bias_unit')
 
     @wrap_cost_func(X, y, weight_decay, beta, rho)
     def cost_func_ld(params,
@@ -208,15 +233,14 @@ def auto_encode(X, y, options):
 
         """
         # params in theano.
-        trans_y         = X.T
-        weights, bs     = params[0 : len(params) / 2], params[len(params) / 2 : ]
-        bias1           = bs[0]
-        bias2           = bs[1]
-        theta1          = weights[0]
-        theta2          = weights[1]
-        m               = theano.shared(value=X.get_value().shape[0], name='m')
+        trans_y     = X.T
+        weights, bs = params[0 : len(params) / 2], params[len(params) / 2 : ]
+        bias1       = bs[0]
+        bias2       = bs[1]
+        theta1      = weights[0]
+        theta2      = weights[1]
 
-        neuron     = T.nnet.sigmoid(T.dot(theta1, trans_y) + bias1)
+        neuron     = T.join(0, bias_unit, T.nnet.sigmoid(T.dot(theta1, trans_y) + bias1))
 
         prediction = T.dot(theta2, neuron) + bias2
         rho_cap    = T.sum(neuron, 1) / m
@@ -303,7 +327,7 @@ def softmax_classify(X, y, options):
     :returns: TODO
 
     """
-    X             = theano.shared(value=X, name='X')
+    X             = theano.shared(value=add_bias_unit(X), name='X')
     y             = theano.shared(value=y, name='y')
     weight_decay  = theano.shared(value=options.decay, name='weight_decay')
     in_out_degree = [options.input, options.output]
@@ -336,7 +360,7 @@ def softmax_classify(X, y, options):
                         * T.sum(T.log2(T.exp(T.sum((T.dot(y, theta1) * X), 1)) / T.sum(T.exp(z)))) \
                         + (weight_decay / (2.0 * m)) * T.sum(theta1 ** 2.0)
 
-        collector  = theano.function([], [J, T.mean(T.sum((T.dot(y, theta1) * X), 1)),# T.sum(T.log2(T.exp(T.sum((T.dot(y, theta1) * X), 1)))), T.dot(y, theta1) * X, T.sum((T.dot(y, theta1) * X), 1), T.exp(T.sum((T.dot(y, theta1) * X), 1)), T.log2(T.exp(T.sum((T.dot(y, theta1) * X), 1))), T.shape(T.sum((T.dot(y, theta1) * X), 1)),
+        collector  = theano.function([], [J, # T.mean(T.sum((T.dot(y, theta1) * X), 1)),# T.sum(T.log2(T.exp(T.sum((T.dot(y, theta1) * X), 1)))), T.dot(y, theta1) * X, T.sum((T.dot(y, theta1) * X), 1), T.exp(T.sum((T.dot(y, theta1) * X), 1)), T.log2(T.exp(T.sum((T.dot(y, theta1) * X), 1))), T.shape(T.sum((T.dot(y, theta1) * X), 1)),
                                         T.grad(J, theta1),
                                         T.grad(J, bias1),])
 
@@ -344,7 +368,7 @@ def softmax_classify(X, y, options):
 
         print all_result
 
-        exit(0)
+        # exit(0)
 
         J, grads    = all_result[0], all_result[1:]
 
@@ -414,7 +438,17 @@ if __name__ == '__main__':
         all_extension = json.loads(extension_file.read())
 
     if options.task == 'autoencoder':
-        auto_encode(options)
+        options.n         = 1500
+        options.decay     = 1
+        options.iteration = 50
+        options.alpha     = 0.001
+        options.beta      = 0.05
+        options.rho        = 0.05
+        options.target_n  = 1000
+        options.input     = 1000
+        options.id        = 1
+        X, y              = load_data('./train/softmax/', options)
+        auto_encode(X, y, options)
     elif options.task == 'visualization':
         visualize_auto_encoder(options)
     else:
