@@ -191,6 +191,21 @@ def add_bias_unit(X, mod='h'):
     return X_with_bias
 
 
+def display_tensor(tensor):
+    """TODO: Docstring for display_tensor.
+
+    :tensor: TODO
+    :returns: TODO
+
+    """
+    a = tensor
+    b = theano.function([], a)
+
+    print b()
+
+    return 0.0
+
+
 def auto_encode(X, y, options):
     """TODO: Docstring for auto_encode.
 
@@ -234,7 +249,7 @@ def auto_encode(X, y, options):
         prediction = T.dot(theta2, neuron)
         rho_cap    = T.sum(neuron, 1) / m
 
-        J          = (1.0 / m) * T.sum((prediction - X.T) ** 2) \
+        J          = (1.0 / (2.0 * m)) * T.sum((prediction - X.T) ** 2) \
                         + (weight_decay / (2 * m)) \
                         * (T.sum(theta1 ** 2) + T.sum(theta2 ** 2)) \
                         + beta * kl_divergence(rho, rho_cap)
@@ -243,9 +258,9 @@ def auto_encode(X, y, options):
                                         T.grad(J, theta1),
                                         T.grad(J, theta2),])
 
-        all_result  = collector()
+        all_result = collector()
 
-        J, grads    = all_result[0], all_result[1:]
+        J, grads   = all_result[0], all_result[1:]
 
         return J, grads
 
@@ -253,7 +268,11 @@ def auto_encode(X, y, options):
 
     gradient_descent(cost_func_ld, init_params, options)
 
+    print numpy.transpose(X.get_value())
+
     end_time = time.clock()
+
+    print init_params[0].get_value()
 
     sio.savemat('./parameters/auto_encoder' + str(options.id), {
             'weight': init_params[0].get_value(),})
@@ -303,6 +322,26 @@ def visualize_auto_encoder(options):
 
         with open('./output/visualize' + str(index_activ) + '.txt', 'w') as visualize_auto_encoder:
             visualize_auto_encoder.write(result_string)
+
+
+def predict_softmax(X, y, param):
+    """TODO: Docstring for predict.
+
+    :X: TODO
+    :y: TODO
+    :params: TODO
+    :returns: TODO
+
+    """
+    tran_X = numpy.transpose(X.get_value())
+    y      = y.get_value()
+    prediction = numpy.exp(numpy.dot(param, tran_X)) \
+            / numpy.sum(numpy.exp(numpy.dot(param, tran_X)), 0)
+
+    prediction = [[int(x == max(z)) for x in z] for z in (numpy.transpose(prediction)).tolist()]
+
+    print numpy.sum(prediction == y) / (y.shape[0] * y.shape[1] + 0.0)
+
 
 
 def softmax_classify(X, y, options):
@@ -358,25 +397,7 @@ def softmax_classify(X, y, options):
 
     end_time = time.clock()
 
-    tran_X = numpy.transpose(X.get_value())
-    y      = y.get_value()
-    prediction = numpy.exp(numpy.dot(params, tran_X)) \
-            / numpy.sum(numpy.exp(numpy.dot(params, tran_X)), 0)
-
-    prediction = numpy.transpose(prediction)
-
-    print prediction.shape
-
-    print y.shape
-
-    prediction = [[int(x == max(y)) for x in y] for y in numpy.transpose(prediction).tolist()]
-
-    print prediction
-    print y
-
-    print prediction == y
-
-    print sum(prediction == y) / (y.shape[0] * y.shape[1] + 0.0)
+    predict_softmax(X, y, params)
 
     sio.savemat('./parameters/softmax' + str(options.id), {
             'weight': params,})
@@ -434,13 +455,13 @@ if __name__ == '__main__':
         all_extension = json.loads(extension_file.read())
 
     if options.task == 'autoencoder':
-        options.n         = 1500
-        options.decay     = 1
+        options.n         = 1000
+        options.decay     = 0
         options.iteration = 50
-        options.alpha     = 0.00002
+        options.alpha     = 0.00003
         options.beta      = 0.05
         options.rho       = 0.05
-        options.target_n  = 1000
+        options.target_n  = 1500
         options.id        = 1
         X, y              = load_data('./train/softmax/', options)
         auto_encode(X, y, options)
@@ -449,7 +470,7 @@ if __name__ == '__main__':
     else:
         options.n         = 1000
         options.decay     = 1
-        options.iteration = 5
+        options.iteration = 200
         options.alpha     = 0.0002
         options.input     = 1000
         options.output    = 4
