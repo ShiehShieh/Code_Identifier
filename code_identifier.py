@@ -2,12 +2,8 @@
 # encoding: utf-8
 
 
-import os
-import json
-import operator
-import time
-import theano
-import numpy
+import os, re, json, time, operator
+import numpy, theano
 import scipy.io as sio
 import theano.tensor as T
 from functools import wraps
@@ -245,10 +241,8 @@ def auto_encode(X, y, options):
         theta2  = params[1]
 
         neuron     = T.join(0, bias_unit, T.nnet.sigmoid(T.dot(theta1, trans_y)))
-
         prediction = T.dot(theta2, neuron)
         rho_cap    = T.sum(neuron, 1) / m
-
         J          = (1.0 / (2.0 * m)) * T.sum((prediction - X.T) ** 2) \
                         + (weight_decay / (2 * m)) \
                         * (T.sum(theta1 ** 2) + T.sum(theta2 ** 2)) \
@@ -414,15 +408,15 @@ def load_data(input_path, options):
     :returns: TODO
 
     """
-    X             = []
-    y             = []
+    X, y          = [], []
     all_files     = [x for x in os.listdir(input_path) if x[0] != '.']
-    temp          = set([os.path.splitext(x)[1] for x in all_files])
+    temp          = set([re.sub('(^\.h$)|(^\.cc$)|(^\.c$)', '.cpp', os.path.splitext(x)[1]) \
+                        for x in all_files])
     all_extension = {}
     options.m     = len(all_files)
 
     for file_name in all_files:
-        extension = os.path.splitext(file_name)[1]
+        extension = re.sub('(^\.h$)|(^\.cc$)|(^\.c$)', '.cpp', os.path.splitext(file_name)[1])
         all_extension.setdefault(extension, operator.indexOf(temp, extension))
 
         with open(input_path + file_name, 'r') as a_file:
@@ -455,19 +449,21 @@ if __name__ == '__main__':
         all_extension = json.loads(extension_file.read())
 
     if options.task == 'autoencoder':
+        print 'Training autoencoder.'
         options.n         = 1000
         options.decay     = 0
-        options.iteration = 50
+        options.iteration = 200
         options.alpha     = 0.00003
         options.beta      = 0.05
         options.rho       = 0.05
         options.target_n  = 1500
         options.id        = 1
-        X, y              = load_data('./train/softmax/', options)
+        X, y              = load_data('./train/ae/', options)
         auto_encode(X, y, options)
     elif options.task == 'visualization':
         visualize_auto_encoder(options)
     else:
+        print 'Routine.'
         options.n         = 1000
         options.decay     = 1
         options.iteration = 200
