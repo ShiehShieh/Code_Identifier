@@ -2,189 +2,21 @@
 # encoding: utf-8
 
 
-import os, re, json, time, operator
-import numpy, theano
+import os
+import re
+import json
+import math
+import numpy
+import theano
+import operator
 import scipy.io as sio
 import theano.tensor as T
-from functools import wraps
-from optparse import OptionParser
+from util import *
+from time import time
+from theano import shared
 
 
-# Global variable.
-FILESIZE  = 10000
-TARGET    = 1000
-ITERATION = 100
-ALPHA     = 0.001
-SPARSITY  = 0.05
-WEIGHT    = 1
-RHO       = 0.05
-
-
-USAGE   = "usage: %prog [options] arg1 arg2"
-VERSION = 'v1.0.0'
-
-
-def wrap_cost_func(*arg):
-    """TODO: Docstring for wrap_cost_func.
-
-    :X: TODO
-    :y: TODO
-    :weight_decay: TODO
-    :returns: TODO
-
-    """
-    def wrap_up(cost_func):
-        """TODO: Docstring for wrap_up.
-
-        :cost_func: TODO
-        :returns: TODO
-
-        """
-        @wraps(cost_func)
-        def wrapper(params):
-            """TODO: Docstring for wrapper.
-
-            :params: TODO
-            :returns: TODO
-
-            """
-            J, grads = cost_func(params, *arg)
-
-            return J, grads
-
-        return wrapper
-
-    return wrap_up
-
-
-def get_options():
-    """TODO: Docstring for get_options.
-    :returns: TODO
-
-    """
-    parser = OptionParser(usage=USAGE, version=VERSION)
-
-    parser.add_option('-f', '--feature', action='store', type='int',
-            help='The number of raw feature', default=FILESIZE,
-            dest='n')
-    parser.add_option('-t', '--target', action='store', type='int',
-            help='The number of target feature', default=TARGET,
-            dest='target_n')
-    parser.add_option('-i', '--iteration', action='store', type='int',
-            help='The number of iteration', default=ITERATION,
-            dest='iteration')
-    parser.add_option('-w', '--weightdecay', action='store', type='float',
-            help='The speed of weight decay', default=WEIGHT,
-            dest='decay')
-    parser.add_option('-r', '--rho', action='store', type='float',
-            help='The mean of activation', default=RHO,
-            dest='rho')
-    parser.add_option('-l', '--learningrate', action='store', type='float',
-            help='The speed of learning', default=ALPHA,
-            dest='alpha')
-    parser.add_option('-s', '--sparsity', action='store', type='float',
-            help='The value of sparsity parameter', default=SPARSITY,
-            dest='beta')
-    parser.add_option('-T', '--task', action='store', type='string',
-            help='The task.', default='',
-            dest='task')
-    parser.add_option('-m', '--multi', action='store_true', dest='multi',
-            help='If this symbol is set, train the algorithem by all file \
-            in this directory.')
-
-    return parser.parse_args()
-
-
-def kl_divergence(rho, rho_cap):
-    """TODO: Docstring for kl_divergence.
-
-    :rho: TODO
-    :rho_cap: TODO
-    :returns: TODO
-
-    """
-    kl = T.sum(rho * T.log2(rho / rho_cap)
-            + (1.5 - rho) * T.log2((1.5 - rho) / (1.5 - rho_cap)))
-
-    return kl
-
-
-def initial_params(in_out_degree):
-    """TODO: Docstring for initial_params.
-
-    :in_out_degree: TODO
-    :returns: TODO
-
-    """
-    print 'Initiating params.'
-
-    params      = []
-    fan_in      = T.dscalar('fan_in')
-    fan_out     = T.dscalar('fan_out')
-    epsilon     = T.sqrt(6 / (fan_in + fan_out))
-    cal_eps     = theano.function([fan_in, fan_out], epsilon)
-
-    for index in range(len(in_out_degree) - 1):
-        in_degree  = in_out_degree[index] + 1
-        out_degree = in_out_degree[index + 1]
-        eps        = cal_eps(in_degree, out_degree)
-        ran_matrix = theano.shared(
-                    value=numpy.random.random((out_degree, in_degree)) * 2 * eps - eps,
-                    borrow=True
-                )
-
-        params.append(ran_matrix)
-
-    print 'Done.\n-----'
-
-    return params
-
-
-def gradient_descent(cost_func,
-                    params,
-                    options):
-    """TODO: Docstring for gradient_descent.
-
-    :gradient_descent(cost_func: TODO
-    :params: TODO
-    :options: TODO
-    :returns: TODO
-
-    """
-    for i in range(options.iteration):
-        print 'Iteration %d...' %(i)
-        J, grads = cost_func(params)
-        print J
-        print '-----\n'
-        for index, param in enumerate(grads):
-            params[index].set_value(params[index].get_value() - options.alpha *  param)
-
-    print 'Final cost is %f .' %(J)
-
-    return params
-
-
-def add_bias_unit(X, mod='h'):
-    """TODO: Docstring for add_bias_unit.
-
-    :X: TODO
-    :mod: TODO
-    :returns: TODO
-
-    """
-    temp = []
-    if mod == 'h':
-        for index in range(X.shape[0]):
-            temp.append([1.0])
-        temp = numpy.array(temp)
-        X_with_bias = numpy.hstack((temp, X))
-    elif mod == 'v':
-        for index in range(X.shape[1]):
-            temp = temp + [1.0]
-        temp = numpy.array(temp)
-        X_with_bias = numpy.vstack((temp, X))
-
-    return X_with_bias
+(options, args) = get_options()
 
 
 def display_tensor(tensor):
@@ -202,7 +34,115 @@ def display_tensor(tensor):
     return 0.0
 
 
-def auto_encode(X, y, options):
+def get_rho(X, theta1, b1):
+    """TODO: Docstring for get_.
+
+    :arg1: TODO
+    :returns: TODO
+
+    """
+    return T.sum(T.dot(theta1, X)+b1, axis=0)
+
+
+def kl_divergence(rho, rho_cap):
+    """TODO: Docstring for kl_divergence.
+
+    :rho: TODO
+    :rho_cap: TODO
+    :returns: TODO
+
+    """
+    kl = T.sum(rho * T.log2(rho / rho_cap)
+            + (1.5 - rho) * T.log2((1.5 - rho) / (1.5 - rho_cap)))
+
+    return kl
+
+
+def gradient_descent(cost_func, params, iter_num, alpha):
+    """TODO: Docstring for gradient_descent.
+
+    :gradient_descent(cost_func: TODO
+    :params: TODO
+    :options: TODO
+    :returns: TODO
+
+    """
+    for i in range(iter_num):
+        print 'Iteration %d...' %(i)
+        J, grads = cost_func(params)
+        print J
+        print '-----\n'
+        for index, param in enumerate(grads):
+            params[index] = (params[index] - alpha * param)
+
+    print 'Final cost is %f .' %(J)
+
+    return params
+
+
+def initial_params(in_out_degree):
+    """TODO: Docstring for initial_params.
+
+    :in_out_degree: TODO
+    :returns: TODO
+
+    """
+    print 'Initiating params.'
+
+    params = []
+    for index in range(len(in_out_degree)-1):
+        in_degree = in_out_degree[index]
+        out_degree = in_out_degree[index+1]
+        eps = math.sqrt(6.0/(in_degree+out_degree))
+        ran_matrix = numpy.random.random((in_degree, out_degree))*2*eps-eps
+        ran_vec = numpy.zeros(out_degree, dtype=theano.config.floatX)
+        params.append(ran_matrix)
+        params.append(ran_vec)
+
+    print 'Done.\n-----'
+
+    return params
+
+
+def assess(a, b, flag=0, threshold=0.5):
+    """TODO: Docstring for assess.
+
+    :a: TODO
+    :b: TODO
+    :returns: TODO
+
+    """
+    if flag:
+        return numpy.mean(numpy.equal(a>=threshold, b>=threshold))
+    else:
+        return numpy.mean(numpy.equal(a, b))
+
+
+def predict(X, params):
+    """TODO: Docstring for predict.
+
+    :X: TODO
+    :params: TODO
+    :returns: TODO
+
+    """
+    result = X
+    neuron = T.nnet.sigmoid(T.dot(result, theta1) + b1)
+    prediction = T.dot(neuron, theta2) + b2
+    pred = theano.function([], [prediction])
+    for index in range(len(params)-3):
+        theta1 = params[index]
+        b1 = params[index+1]
+        theta2 = params[index+2]
+        b2 = params[index+3]
+
+
+
+@log_time
+@embed_params(_iter_num=options.iteration, _alpha=options.alpha,
+              _decay=options.decay, _beta=options.beta, _rho=options.rho)
+def auto_encode(X, y, input_n, hidden_n, _iter_num,
+                _alpha, _decay, _beta, _rho):
     """TODO: Docstring for auto_encode.
 
     :row_num: TODO
@@ -212,21 +152,34 @@ def auto_encode(X, y, options):
     :returns: TODO
 
     """
-    X             = theano.shared(value=X, name='X')
-    weight_decay  = theano.shared(value=options.decay, name='weight_decay')
-    beta          = theano.shared(value=options.beta, name='beta')
-    rho           = theano.shared(value=options.rho, name='rho')
-    in_out_degree = [options.n, options.target_n, options.n]
+    in_out_degree = [input_n, hidden_n, input_n]
     init_params   = initial_params(in_out_degree)
-    m             = theano.shared(value=X.get_value().shape[0], name='m')
-    bias_unit     = theano.shared(value=numpy.ones((1, m.get_value())), name='bias_unit')
+    m = X.shape[1]
 
-    @wrap_cost_func(X, y, weight_decay, beta, rho)
-    def cost_func_ld(params,
-                    X, non_y,
-                    weight_decay,
-                    beta, rho):
-        """TODO: Docstring for cost_func_ld.
+    t_X = T.dmatrix()
+    t_theta1 = T.dmatrix()
+    t_b1 = T.dvector()
+    t_theta2 = T.dmatrix()
+    t_b2 = T.dvector()
+    t_m = T.dscalar()
+    t_weight_decay = T.dscalar()
+    # t_beta = T.dscalar()
+    # t_rho = T.dscalar()
+    neuron     = T.nnet.sigmoid(T.dot(t_X, t_theta1) + t_b1)
+    # rho_cap    = T.sum(neuron, 1) / t_m
+    prediction = T.dot(neuron, t_theta2) + t_b2
+    J = (1.0 / (2.0 * m)) * T.sum((prediction - t_X) ** 2) \
+            + (t_weight_decay / (2 * t_m)) \
+            * (T.sum(t_theta1 ** 2) + T.sum(t_theta2 ** 2)) \
+            # + t_beta * kl_divergence(t_rho, rho_cap)
+
+    collector = theano.function([t_X, t_theta1, t_b1, t_theta2, t_b2, t_m,
+                                 t_weight_decay,],
+                                [J, T.grad(J, t_theta1), T.grad(J, t_b1),
+                                 T.grad(J, t_theta2), T.grad(J, t_b2),])
+
+    def cost_func_ae(params):
+        """TODO: Docstring for cost_func_ae.
 
         :params: TODO
         :X: TODO
@@ -235,41 +188,32 @@ def auto_encode(X, y, options):
         :returns: TODO
 
         """
-        # params in theano.
-        trans_y = T.join(0, bias_unit, X.T)
-        theta1  = params[0]
-        theta2  = params[1]
+        all_result = collector(X, params[0], params[1],
+                               params[2], params[3], m, _decay)
 
-        neuron     = T.join(0, bias_unit, T.nnet.sigmoid(T.dot(theta1, trans_y)))
-        prediction = T.dot(theta2, neuron)
-        rho_cap    = T.sum(neuron, 1) / m
-        J          = (1.0 / (2.0 * m)) * T.sum((prediction - X.T) ** 2) \
-                        + (weight_decay / (2 * m)) \
-                        * (T.sum(theta1 ** 2) + T.sum(theta2 ** 2)) \
-                        + beta * kl_divergence(rho, rho_cap)
-
-        collector  = theano.function([], [J,
-                                        T.grad(J, theta1),
-                                        T.grad(J, theta2),])
-
-        all_result = collector()
-
-        J, grads   = all_result[0], all_result[1:]
+        J, grads = all_result[0], all_result[1:]
 
         return J, grads
 
-    start_time = time.clock()
+    start_time = time()
 
-    gradient_descent(cost_func_ld, init_params, options)
+    gradient_descent(cost_func_ae, init_params, _iter_num, _alpha)
 
-    print numpy.transpose(X.get_value())
+    end_time = time()
 
-    end_time = time.clock()
+    theta1 = shared(value=init_params[0])
+    b1 = shared(value=init_params[1])
+    theta2 = shared(value=init_params[2])
+    b2 = shared(value=init_params[3])
+    neuron = T.nnet.sigmoid(T.dot(X, theta1) + b1)
+    prediction = T.dot(neuron, theta2) + b2
+    pred = theano.function([], [prediction])
 
-    print init_params[0].get_value()
+    print assess(X, pred()[0], 1)
 
-    sio.savemat('./parameters/auto_encoder' + str(options.id), {
-            'weight': init_params[0].get_value(),})
+    sio.savemat('./parameters/auto_encoder', {
+            'weight': init_params[0],
+            'bias': init_params[1],})
 
     print 'Training time of sparse linear decoder: %f minutes.' \
             %((end_time - start_time) / 60.0)
@@ -307,7 +251,7 @@ def visualize_auto_encoder(options):
     :returns: TODO
 
     """
-    encode_params = theano.shared(
+    encode_params = shared(
             value=sio.loadmat('./parameters/auto_encoder')['weight'],
         )
 
@@ -347,16 +291,13 @@ def softmax_classify(X, y, options):
     :returns: TODO
 
     """
-    X             = theano.shared(value=add_bias_unit(X) / 10, name='X')
-    y             = theano.shared(value=y, name='y')
-    weight_decay  = theano.shared(value=options.decay, name='weight_decay')
+    X             = shared(value=add_bias_unit(X) / 10, name='X')
+    y             = shared(value=y, name='y')
+    weight_decay  = shared(value=options.decay, name='weight_decay')
     in_out_degree = [options.input, options.output]
     init_params   = initial_params(in_out_degree)
 
-    @wrap_cost_func(X, y, weight_decay)
-    def cost_func_sm(params,
-                    X, y,
-                    weight_decay):
+    def cost_func_sm(params):
         """TODO: Docstring for cost_func_ld.
 
         :params: TODO
@@ -368,13 +309,13 @@ def softmax_classify(X, y, options):
         """
         # params in theano.
         theta1 = params[0]
-        m      = theano.shared(value=X.get_value().shape[0], name='m')
+        m      = shared(value=X.get_value().shape[0], name='m')
         tran_X = X.T
 
         z          = T.dot(theta1, tran_X)
         J          = (-1.0 / m) \
-                        * T.sum(T.log2(T.exp(T.sum((T.dot(y, theta1) * X), 1)) / T.sum(T.exp(z), 0))) \
-                        + (weight_decay / (2.0 * m)) * T.sum(theta1 ** 2.0)
+                * T.sum(T.log2(T.exp(T.sum((T.dot(y, theta1) * X), 1)) / T.sum(T.exp(z), 0))) \
+                + (weight_decay / (2.0 * m)) * T.sum(theta1 ** 2.0)
 
         collector  = theano.function([], [J,
                                         T.grad(J, theta1),])
@@ -385,11 +326,11 @@ def softmax_classify(X, y, options):
 
         return J, grads
 
-    start_time = time.clock()
+    start_time = time()
 
-    params = (gradient_descent(cost_func_sm, init_params, options))[0].get_value()
+    params = gradient_descent(cost_func_sm, init_params, options)[0].get_value()
 
-    end_time = time.clock()
+    end_time = time()
 
     predict_softmax(X, y, params)
 
@@ -403,44 +344,102 @@ def softmax_classify(X, y, options):
     return 5
 
 
-def load_data(input_path, options):
-    """TODO: Docstring for load_data.
+def fill_feature_dict(folder, exclude_file=[]):
+    """TODO: Docstring for fill_feature_dict.
+
+    :all_files: TODO
+    :exclude_file: TODO
     :returns: TODO
 
     """
-    X, y          = [], []
-    all_files     = [x for x in os.listdir(input_path) if x[0] != '.']
-    temp          = set([re.sub('(^\.h$)|(^\.cc$)|(^\.c$)', '.cpp', os.path.splitext(x)[1]) \
-                        for x in all_files])
-    all_extension = {}
-    options.m     = len(all_files)
+    keywords = {}
+    all_files = [x for x in os.listdir(folder) if x[0] != '.']
+    for filename in all_files:
+        if os.path.splitext(filename)[1] not in exclude_file:
+            filename = os.path.join(folder, filename)
+            with open(filename, 'r') as code_file:
+                all_words = get_feature(code_file)
+            for word in all_words:
+                keywords.setdefault(word, 1)
 
-    for file_name in all_files:
-        extension = re.sub('(^\.h$)|(^\.cc$)|(^\.c$)', '.cpp', os.path.splitext(file_name)[1])
-        all_extension.setdefault(extension, operator.indexOf(temp, extension))
+    print len(keywords)
 
-        with open(input_path + file_name, 'r') as a_file:
-            label    = []
-            raw_data = [ord(x) for x in a_file.read(options.n)]
-            if len(raw_data) < options.n:
-                raw_data = raw_data + [32] * (options.n - len(raw_data))
+    return keywords
 
-            for index in range(len(temp)):
-                label.append(0)
-            label[all_extension[extension]] = 1
 
-            X.append(raw_data)
-            y.append(label)
+def keyword_to_feature(keywords, orded_key, index):
+    """TODO: Docstring for keyword_to_feature.
 
-    with open('./parameters/all_extension.txt', 'w') as extension_file:
+    :keywords: TODO
+    :returns: TODO
+
+    """
+    return [keywords.setdefault(key_tuple[0], 0) for key_tuple in orded_key]
+
+
+def get_feature(fh):
+    """TODO: Docstring for get_featurefile_feature.
+
+    :filename: TODO
+    :returns: TODO
+
+    """
+    keywords = {}
+    processed = re.sub('\w+\s*[!=<>:;]', '', fh.read())
+    processed = re.sub('\'.*\'', '', processed)
+    processed = re.sub('\".*\"', '', processed)
+    processed = re.sub('#.*', '', processed)
+    processed = re.sub('//.*', '', processed)
+    processed = re.sub('[*].*', '', processed)
+
+    all_words = [x for x in re.findall('[a-z]+', processed)
+                 if len(x) > 1 and len(x) <= 10]
+    for word in all_words:
+        keywords.setdefault(word, 1)
+
+    return keywords
+
+
+def load_data(folder, exclude_file):
+    """TODO: Docstring for parse_multi_file.
+    :returns: TODO
+
+    """
+    all_keywords  = {}
+    X = []
+    y = []
+    all_files     = [x for x in os.listdir(folder) if x[0] != '.']
+    all_keywords  = fill_feature_dict(folder, exclude_file)
+    orded_key     = sorted(all_keywords.iteritems(), key=lambda x: x[0], reverse=False)
+    temp          = [os.path.splitext(x)[1] for x in all_files if x[0] != '.']
+    all_extension = list(set(temp))
+
+    for one in all_files:
+        index = operator.indexOf(all_extension, os.path.splitext(one)[1]) + 1
+        with open(os.path.join(folder, one), 'r') as fh:
+            keywords = get_feature(fh)
+        X.append(keyword_to_feature(keywords, orded_key, index))
+        y.append(index)
+
+
+    with open('all_extension.txt', 'w') as extension_file:
         extension_file.write(json.dumps(all_extension))
 
-    X, y = numpy.array(X), numpy.array(y)
+    with open('all_keywords.txt', 'w') as keyword_file:
+        keyword_file.write(json.dumps(all_keywords))
 
-    return X, y
+    with open('oct_extension.txt', 'w') as oct_extension:
+        for extension in all_extension:
+            oct_extension.write(extension + os.linesep)
+
+    return numpy.array(X), numpy.array(y)
 
 
-if __name__ == '__main__':
+def main():
+    """TODO: Docstring for main.
+    :returns: TODO
+
+    """
     (options, args) = get_options()
 
     theano.config.exception_verbosity = 'high'
@@ -450,26 +449,16 @@ if __name__ == '__main__':
 
     if options.task == 'autoencoder':
         print 'Training autoencoder.'
-        options.n         = 1000
-        options.decay     = 0
-        options.iteration = 200
-        options.alpha     = 0.00003
-        options.beta      = 0.05
-        options.rho       = 0.05
-        options.target_n  = 1500
-        options.id        = 1
-        X, y              = load_data('./train/ae/', options)
-        auto_encode(X, y, options)
+        X, y = load_data('./train/ae', [])
+        print X.shape
+        auto_encode(X, y, X.shape[1], X.shape[1]*0.2)
     elif options.task == 'visualization':
         visualize_auto_encoder(options)
     else:
         print 'Routine.'
-        options.n         = 1000
-        options.decay     = 1
-        options.iteration = 200
-        options.alpha     = 0.0002
-        options.input     = 1000
-        options.output    = 4
-        options.id        = 1
-        X, y              = load_data('./train/softmax/', options)
+        X, y = load_data('./train/softmax/', options)
         softmax_classify(X, y, options)
+
+
+if __name__ == '__main__':
+    main()
