@@ -3,15 +3,6 @@ from functools import wraps
 from optparse import OptionParser
 
 
-FILESIZE  = 10000
-TARGET    = 200
-ITERATION = 35
-ALPHA     = 0.005
-SPARSITY  = 0.005
-WEIGHT    = 0.005
-RHO       = 0.005
-
-
 USAGE   = "usage: %prog [options] arg1 arg2"
 VERSION = 'v1.0.0'
 
@@ -21,6 +12,17 @@ def get_options():
     :returns: TODO
 
     """
+    FILESIZE  = 10000
+    TARGET    = 200
+    ITERATION = 50
+    ALPHA     = 0.005
+    SPARSITY  = 0.005
+    WEIGHT    = 0.005
+    RHO       = 0.005
+
+    kw = dict(((word, 1) for word in get_feature(open(join(folder, filename)))
+               for filename in all_files))
+
     parser = OptionParser(usage=USAGE, version=VERSION)
 
     parser.add_option('-f', '--feature', action='store', type='int',
@@ -45,8 +47,9 @@ def get_options():
             help='The value of sparsity parameter', default=SPARSITY,
             dest='beta')
     parser.add_option('-T', '--task', action='store', type='string',
-            help='The task.', default='',
-            dest='task')
+            help='The task.', default='', dest='task')
+    parser.add_option('-d', '--tf', action='store', type='string',
+            help='The directory.', default='./train/', dest='target_folder')
     parser.add_option('-m', '--multi', action='store_true', dest='multi',
             help='If this symbol is set, train the algorithem by all file \
             in this directory.')

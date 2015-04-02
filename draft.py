@@ -34,3 +34,22 @@ def load_data(input_path, n):
     return X, y
 
 
+theta1 = shared(value=params[0])
+b1 = shared(value=params[1])
+theta2 = shared(value=params[2])
+b2 = shared(value=params[3])
+neuron = T.nnet.sigmoid(T.dot(X, theta1) + b1)
+prediction = T.dot(neuron, theta2) + b2
+pred = theano.function([], [prediction])
+
+
+with open('all_extension.txt', 'w') as extension_file:
+    extension_file.write(json.dumps(all_extension))
+
+with open('all_keywords.txt', 'w') as keyword_file:
+    keyword_file.write(json.dumps(all_keywords))
+
+with open('oct_extension.txt', 'w') as oct_extension:
+    for extension in all_extension:
+        oct_extension.write(extension + os.linesep)
+
