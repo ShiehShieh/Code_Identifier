@@ -114,8 +114,10 @@ def assess(a, b, flag=0, threshold=0.5):
     :returns: TODO
 
     """
-    if flag:
+    if flag==1:
         return numpy.mean(numpy.equal(a>=threshold, b>=threshold))
+    elif flag == 2:
+        return numpy.mean(numpy.abs(a-b)<numpy.mean(a/10.))
     else:
         return numpy.mean(numpy.equal(a, b))
 
@@ -150,13 +152,14 @@ def predict(X, params):
 @log_time
 @embed_params(_iter_num=options.iteration, _alpha=options.alpha,
               _decay=options.decay, _beta=options.beta, _rho=options.rho)
-def auto_encode(X, y, input_n, hidden_n, _iter_num,
-                _alpha, _decay, _beta, _rho):
+def auto_encode(X, _iter_num, _alpha, _decay, _beta, _rho):
     """TODO: Docstring for auto_encode.
 
     :returns: TODO
 
     """
+    input_n = X.shape[1]
+    hidden_n = X.shape[1]*0.3
     m = X.shape[1]
     in_out_degree = [input_n, hidden_n, input_n]
     init_params   = initial_params(in_out_degree)
@@ -198,11 +201,34 @@ def auto_encode(X, y, input_n, hidden_n, _iter_num,
 
     print 'Training time of sparse linear decoder: %f minutes.' \
             %((time() - start_time) / 60.0)
-    print 'The accuracy of ae: %f %%' % (assess(X, predict(X, params), 1))
+    print 'The accuracy of ae: %f %% (threshold used)' \
+            % (assess(X, predict(X, params), 1))
+    print 'The accuracy of ae: %f %% (abs used)' \
+            % (assess(X, predict(X, params), 2))
 
-    sio.savemat('./param/ae_weight_bias', {
-            'weight': params[0], 'bias': params[1],
-            })
+    # sio.savemat('./param/ae_weight_bias', {
+    #         'weight': params[0], 'bias': params[1],
+    #         })
+
+    return params[:2]
+
+
+def stack_aes(layer):
+    """TODO: Docstring for stack_aes.
+
+    :layer: TODO
+    :returns: TODO
+
+    """
+    X, y = load_data()
+    weights, biases = [], []
+    for i in range(layer):
+        weight, bias = auto_encode(X)
+        weights.append(weight)
+        biases.append(bias)
+        X = sigmoid(numpy.dot(X, weight) + bias)
+
+    pass
 
 
 # Under construction.
@@ -266,7 +292,11 @@ def predict_softmax(X, y, param):
 
 
 
-def softmax_classify(X, y, options):
+@log_time
+@embed_params(_iter_num=options.iteration, _alpha=options.alpha,
+              _decay=options.decay, _beta=options.beta, _rho=options.rho)
+def softmax_classify(X, y, _iter_num,
+                _alpha, _decay, _beta, _rho):
     """TODO: Docstring for softmax_classify.
 
     :X: TODO
@@ -275,11 +305,23 @@ def softmax_classify(X, y, options):
     :returns: TODO
 
     """
-    X = shared(value=add_bias_unit(X) / 10, name='X')
-    y = shared(value=y, name='y')
-    weight_decay = shared(value=options.decay, name='weight_decay')
-    in_out_degree = [options.input, options.output]
+    input_n = X.shape[1]
+    hidden_n = X.shape[1]*0.3
+    output_n = y.shape[1]
+    in_out_degree = [input_n, hidden_n, output_n]
     init_params = initial_params(in_out_degree)
+
+    t_X, t_y = T.dmatrix(), T.dmatrix()
+    t_weight_decay, t_m = T.dscalar(), T.dscalar()
+    t_theta1, t_b1 = T.dmatrix(), T.dvector()
+
+    z = T.dot(theta1, t_X)
+    J = (-1.0 / t_m) \
+            * T.sum(T.log2(T.exp(T.sum((T.dot(t_y, t_theta1) * t_X), 1)) / T.sum(T.exp(z), 0))) \
+            + (t_weight_decay / (2.0 * t_m)) * T.sum(t_theta1 ** 2.0)
+
+    formula = theano.function([t_X, t_y, t_weight_decay, t_m, t_theta1, t_b1],
+                              [J, T.grad(J, t_theta1), T.grad(J, t_b1),])
 
     def cost_func_sm(params):
         """TODO: Docstring for cost_func_ld.
@@ -291,22 +333,9 @@ def softmax_classify(X, y, options):
         :returns: TODO
 
         """
-        # params in theano.
-        theta1 = params[0]
-        m      = shared(value=X.get_value().shape[0], name='m')
-        tran_X = X.T
+        result = formula()
 
-        z          = T.dot(theta1, tran_X)
-        J          = (-1.0 / m) \
-                * T.sum(T.log2(T.exp(T.sum((T.dot(y, theta1) * X), 1)) / T.sum(T.exp(z), 0))) \
-                + (weight_decay / (2.0 * m)) * T.sum(theta1 ** 2.0)
-
-        collector  = theano.function([], [J,
-                                        T.grad(J, theta1),])
-
-        all_result  = collector()
-
-        J, grads    = all_result[0], all_result[1:]
+        J, grads = result[0], result[1:]
 
         return J, grads
 
@@ -314,18 +343,15 @@ def softmax_classify(X, y, options):
 
     params = gradient_descent(cost_func_sm, init_params, options)[0].get_value()
 
-    end_time = time()
-
     predict_softmax(X, y, params)
 
-    sio.savemat('./parameters/softmax' + str(options.id), {
-            'weight': params,})
-
     print 'Training time of sparse linear decoder: %f minutes.' \
-            %((end_time - start_time) / 60.0)
+            %((time() - start_time) / 60.0)
     print 'Training accuracy'
 
-    return 5
+    sio.savemat('./parameters/softmax' + str(options.id), {
+            'weight': params[0], 'bias': params[1]
+            })
 
 
 def fill_feature_dict(folder, exclude_file=[]):
@@ -447,11 +473,13 @@ def main():
         print 'Training autoencoder.'
         X, y = load_data()
         print 'Shape of X: %s; Shape of y: %s' % (X.shape, y.shape)
-        auto_encode(X, y, X.shape[1], X.shape[1]*0.2)
+        auto_encode(X)
     elif options.task == 'parse_files':
         parse_files('./train/ae')
     elif options.task == 'visualization':
         visualize_auto_encoder(options)
+    elif options.task == 'stack_aes':
+        stack_aes(2)
     else:
         print 'Routine.'
         X, y = load_data('./train/softmax/', options)

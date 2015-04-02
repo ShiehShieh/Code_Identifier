@@ -20,8 +20,8 @@ def get_options():
     WEIGHT    = 0.005
     RHO       = 0.005
 
-    kw = dict(((word, 1) for word in get_feature(open(join(folder, filename)))
-               for filename in all_files))
+    # kw = dict(((word, 1) for word in get_feature(open(join(folder, filename)))
+    #            for filename in all_files))
 
     parser = OptionParser(usage=USAGE, version=VERSION)
 
