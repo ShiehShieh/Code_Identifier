@@ -31,9 +31,12 @@ def get_options():
     parser.add_option('-t', '--target', action='store', type='int',
             help='The number of target feature', default=TARGET,
             dest='target_n')
-    parser.add_option('-i', '--iteration', action='store', type='int',
-            help='The number of iteration', default=ITERATION,
-            dest='iteration')
+    parser.add_option('--i1', action='store', type='int',
+            help='The number of iteration for ae', default=ITERATION,
+            dest='iter1')
+    parser.add_option('--i2', action='store', type='int',
+            help='The number of iteration for sm', default=ITERATION,
+            dest='iter2')
     parser.add_option('-w', '--weightdecay', action='store', type='float',
             help='The speed of weight decay', default=WEIGHT,
             dest='decay')
