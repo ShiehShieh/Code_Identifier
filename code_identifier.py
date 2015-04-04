@@ -3,6 +3,7 @@
 
 
 import re
+import json
 import math
 import cmath
 import numpy
@@ -412,11 +413,10 @@ def deep_learn(X, y, layer, _iter_num, _alpha, _decay):
             % (assess(y, be_onefold(predict_dl(X, finale), 1), 2))
 
 
-def fill_feature_dict(folder, exclude_file=[]):
+def fill_feature_dict(folder):
     """TODO: Docstring for fill_feature_dict.
 
     :all_files: TODO
-    :exclude_file: TODO
     :returns: TODO
 
     """
@@ -456,20 +456,22 @@ def get_feature(fh):
     return dict(((word, 1) for word in all_words))
 
 
-def parse_files(src_folder, tt, exclude_file=[]):
+def parse_files(src_folder, tt, all_keywords=None, all_extension=None):
     """TODO: Docstring for parse_files.
 
     :folder: TODO
-    :exclude_file: TODO
     :returns: TODO
 
     """
-    X, y, all_keywords = [], [], {}
+    X, y = [], []
     all_files = [x for x in listdir(src_folder) if x[0] != '.']
-    all_keywords = fill_feature_dict(src_folder, exclude_file)
+    if all_keywords is None:
+        all_keywords = fill_feature_dict(src_folder)
+    if all_extension is None:
+        temp = [splitext(x)[1] for x in all_files if x[0] != '.']
+        all_extension = list(set(temp))
     orded_key = sorted(all_keywords.iteritems(), key=lambda x: x[0])
-    temp = [splitext(x)[1] for x in all_files if x[0] != '.']
-    all_extension = list(set(temp))
+    all_extension = sorted(all_extension)
 
     for one in all_files:
         index = operator.indexOf(all_extension, splitext(one)[1])
@@ -478,7 +480,7 @@ def parse_files(src_folder, tt, exclude_file=[]):
         X.append(keyword_to_feature(keywords, orded_key, index))
         y.append([int(i == index) for i in range(len(all_extension))])
 
-    print 'The number of keywords: %d' % (len(keywords))
+    print 'The number of keywords: %d' % (len(all_keywords))
     print 'The number of label: %d' % (len(all_extension))
 
     with open('all_keywords.txt', 'w') as tmp:
@@ -490,12 +492,11 @@ def parse_files(src_folder, tt, exclude_file=[]):
     sio.savemat(tt+'_sample', {
             'input': X, 'label': y,
             })
-    sio.savemat(tt+'_extension', {
-            'all_extension': all_extension,
-            })
-    sio.savemat(tt+'_keyword', {
-            'all_keywords': all_keywords,
-            })
+    with open(join(PARAM_FOLDER, 'extension'), 'w') as tmp:
+        tmp.write(json.dumps(all_extension))
+    with open(join(PARAM_FOLDER, 'keyword'), 'w') as tmp:
+        tmp.write(json.dumps(all_keywords))
+
 
     return numpy.array(X), numpy.array(y)
 
@@ -539,8 +540,14 @@ def main():
         X, y = load_data(join(PARAM_FOLDER, options.task+'_sample'))
         print 'Shape of X: %s; Shape of y: %s' % (X.shape, y.shape)
         auto_encode(X)
-    elif options.task == 'parse_files':
+    elif options.task == 'pfn':
         parse_files(options.src, join(PARAM_FOLDER, options.tt))
+    elif options.task == 'pfo':
+        with open(join(PARAM_FOLDER, 'keyword'), 'r') as tmp:
+            key = json.load(tmp)
+        with open(join(PARAM_FOLDER, 'extension'), 'r') as tmp:
+            ext = json.load(tmp)
+        parse_files(options.src, join(PARAM_FOLDER, options.tt), dict(key), ext)
     elif options.task == 'visualization':
         visualize_auto_encoder(options)
     elif options.task == 'saes':
@@ -557,11 +564,19 @@ def main():
         print 'Training deep neural network.'
         X, y = load_data(join(PARAM_FOLDER, options.task+'_sample'))
         print 'Shape of X: %s; Shape of y: %s' % (X.shape, y.shape)
-        deep_learn(X, y, 1)
+        deep_learn(X, y, 2)
     else:
-        print 'Routine.'
-        X, y = load_data('./train/softmax/', options)
-        softmax_classify(X, y, options)
+        X, y = load_data(join(PARAM_FOLDER, 'sm_sample'))
+        params = softmax_classify(X, y)
+        test_X, test_y = load_data(join(PARAM_FOLDER, 'test_sample'))
+
+        print '----------'
+        print test_y
+        print be_onefold(predict_dl(test_X, params), 1)
+        print 'The accuracy of sm: %f %% (threshold used)' \
+                % (assess(test_y, be_onefold(predict_dl(test_X, params), 1), 1))
+        print 'The accuracy of sm: %f %% (abs used)' \
+                % (assess(test_y, be_onefold(predict_dl(test_X, params), 1), 2))
 
 
 if __name__ == '__main__':
