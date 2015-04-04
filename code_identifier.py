@@ -12,6 +12,7 @@ import scipy.io as sio
 import theano.tensor as T
 from util import *
 from time import time
+from operator import add
 from theano import shared
 from os import makedirs, listdir
 from os.path import exists, join, splitext, isdir
@@ -29,7 +30,7 @@ def display_tensor(tensor):
 
     """
     a = tensor
-    b = theano.function([], a)
+    b = theano.function([], [a, a.shape])
 
     print b()
 
@@ -133,7 +134,7 @@ def predict_sae(X, params):
 
     """
     pred = X
-    for index in range(len(params)-3):
+    for index in range(0, len(params)-1, 3):
         theta1, b1 = params[index], params[index+1]
         theta2, b2 = params[index+2], params[index+3]
         pred = numpy.dot(sigmoid(numpy.dot(pred, theta1) + b1), theta2) + b2
@@ -238,7 +239,7 @@ def visualize_auto_encoder(options):
             visualize_auto_encoder.write(result_string)
 
 
-def predict_sm(X, param):
+def predict_sm(X, params):
     """TODO: Docstring for predict.
 
     :X: TODO
@@ -247,7 +248,7 @@ def predict_sm(X, param):
     :returns: TODO
 
     """
-    z = sigmoid(numpy.dot(X, param[0]) + param[1]).T
+    z = sigmoid(numpy.dot(X, params[0]) + params[1]).T
     pred = z / numpy.sum(z, 0)
 
     return pred.T
@@ -302,24 +303,20 @@ def softmax_classify(X, y, _iter_num,
 
     start_time = time()
 
-    params = gradient_descent(cost_func_sm, init_params, _iter_num, _alpha)
-
-    print y
-    print predict_sm(X, params)
-    print be_onefold(predict_sm(X, params), 1)
+    finale = gradient_descent(cost_func_sm, init_params, _iter_num, _alpha)
 
     print 'Training time of sparse linear decoder: %f minutes.' \
             %((time() - start_time) / 60.0)
     print 'The accuracy of sm: %f %% (threshold used)' \
-            % (assess(y, be_onefold(predict_sm(X, params), 1), 1))
+            % (assess(y, be_onefold(predict_sm(X, finale), 1), 1))
     print 'The accuracy of sm: %f %% (abs used)' \
-            % (assess(y, be_onefold(predict_sm(X, params), 1), 2))
+            % (assess(y, be_onefold(predict_sm(X, finale), 1), 2))
 
     # sio.savemat('./param/sm_weight_bias', {
     #         'weight': params[0], 'bias': params[1]
     #         })
 
-    return params[:2]
+    return finale[:2]
 
 
 def stack_aes(X, y, layer):
@@ -343,8 +340,26 @@ def stack_aes(X, y, layer):
     return params
 
 
+def predict_dl(X, params):
+    """TODO: Docstring for predict_dl.
+
+    :X: TODO
+    :params: TODO
+    :returns: TODO
+
+    """
+    pred = X
+    for index in range(0, len(params)-2, 2):
+        weight, bias = params[index], params[index+1]
+        pred = sigmoid(numpy.dot(pred, weight) + bias)
+
+    pred = predict_sm(pred, params[-2:])
+
+    return pred
+
+
 @log_time
-@embed_params(_iter_num=options.iter1,
+@embed_params(_iter_num=options.iter3,
               _alpha=options.alpha, _decay=options.decay)
 def deep_learn(X, y, layer, _iter_num, _alpha, _decay):
     """TODO: Docstring for deep_learn.
@@ -357,9 +372,44 @@ def deep_learn(X, y, layer, _iter_num, _alpha, _decay):
     :returns: TODO
 
     """
-    params = stack_aes(X, y, layer)
+    init_params = stack_aes(X, y, layer)
 
-    print len(params)
+    t_X, t_y, t_z = T.dmatrix(), T.dmatrix(), T.dmatrix()
+    t_m, t_weight_decay, t_b = T.dscalar(), T.dscalar(), T.dscalar()
+    t_params = reduce(add, [[T.dmatrix(), T.dvector()] for i in range(len(init_params)/2)])
+
+    t_z = t_X
+    for i in range(0, len(t_params)-2, 2):
+        t_z = T.nnet.sigmoid(T.dot(t_z, t_params[i])+t_params[i+1])
+    t_z = T.dot(t_z, t_params[-2]) + t_params[-1]
+    J = (-1.0 / t_m) \
+            * T.sum(T.log2(T.exp(T.sum(t_z * t_y, 1)) / T.sum(T.exp(t_z), 1))) \
+            + (t_weight_decay / (2.0 * t_m)) * \
+            T.sum(reduce(add, [T.sum(param ** 2.0) for param in t_params]))
+
+    formula = theano.function([t_X, t_y] + t_params + [t_weight_decay, t_m],
+                              [J] + [T.grad(J, param) for param in t_params])
+
+    def cost_func_sm(params):
+        exec compile('tmp = formula(X, y, '+
+                     ''.join(['params[%d], ' % (index)
+                              for index in range(len(params))])+
+                     '_decay, X.shape[0])',
+                     '', 'exec') in {'formula': formula, 'X': X, 'y': y,
+                                     '_decay': _decay, 'tmp': None}, locals()
+        J, grads = tmp[0], tmp[1:]
+        return J, grads
+
+    start_time = time()
+
+    finale = gradient_descent(cost_func_sm, init_params, _iter_num, _alpha)
+
+    print 'Training time of sparse linear decoder: %f minutes.' \
+            %((time() - start_time) / 60.0)
+    print 'The accuracy of sm: %f %% (threshold used)' \
+            % (assess(y, be_onefold(predict_dl(X, finale), 1), 1))
+    print 'The accuracy of sm: %f %% (abs used)' \
+            % (assess(y, be_onefold(predict_dl(X, finale), 1), 2))
 
 
 def fill_feature_dict(folder, exclude_file=[]):
@@ -507,7 +557,7 @@ def main():
         print 'Training deep neural network.'
         X, y = load_data(join(PARAM_FOLDER, options.task+'_sample'))
         print 'Shape of X: %s; Shape of y: %s' % (X.shape, y.shape)
-        deep_learn(X, y, 2)
+        deep_learn(X, y, 1)
     else:
         print 'Routine.'
         X, y = load_data('./train/softmax/', options)

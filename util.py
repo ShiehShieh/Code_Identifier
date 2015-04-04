@@ -33,6 +33,9 @@ def get_options():
     parser.add_option('--i2', action='store', type='int',
             help='The number of iteration for sm', default=ITERATION,
             dest='iter2')
+    parser.add_option('--i3', action='store', type='int',
+            help='The number of iteration for dl', default=ITERATION,
+            dest='iter3')
     parser.add_option('-w', '--weightdecay', action='store', type='float',
             help='The speed of weight decay', default=WEIGHT, dest='decay')
     parser.add_option('-r', '--rho', action='store', type='float',

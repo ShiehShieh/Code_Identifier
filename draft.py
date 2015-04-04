@@ -53,3 +53,12 @@ with open('oct_extension.txt', 'w') as oct_extension:
     for extension in all_extension:
         oct_extension.write(extension + os.linesep)
 
+
+exec compile('formula = theano.function([z, t_y, '+
+             ''.join(['t_params[%d], ' % (index)
+                      for index in range(len(t_params))])+
+             't_weight_decay, t_m], '+
+             '[J, '+''.join(['T.grad(J, t_params[%d]), ' % (index)
+                              for index in range(len(t_params))])+'])',
+             '', 'exec') in globals(), locals()
+
