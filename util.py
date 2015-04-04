@@ -13,7 +13,6 @@ def get_options():
 
     """
     FILESIZE  = 10000
-    TARGET    = 200
     ITERATION = 50
     ALPHA     = 0.005
     SPARSITY  = 0.005
@@ -40,8 +39,12 @@ def get_options():
             help='The speed of weight decay', default=WEIGHT, dest='decay')
     parser.add_option('-r', '--rho', action='store', type='float',
             help='The mean of activation', default=RHO, dest='rho')
-    parser.add_option('-l', '--learningrate', action='store', type='float',
-            help='The speed of learning', default=ALPHA, dest='alpha')
+    parser.add_option('--alpha1', action='store', type='float',
+            help='The speed of learning of ae', default=ALPHA, dest='alpha1')
+    parser.add_option('--alpha2', action='store', type='float',
+            help='The speed of learning of sm', default=ALPHA, dest='alpha2')
+    parser.add_option('--alpha3', action='store', type='float',
+            help='The speed of learning of dl', default=ALPHA, dest='alpha3')
     parser.add_option('-s', '--sparsity', action='store', type='float',
             help='The value of sparsity parameter', default=SPARSITY,
             dest='beta')

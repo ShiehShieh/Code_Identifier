@@ -144,7 +144,7 @@ def predict_sae(X, params):
 
 
 @log_time
-@embed_params(_iter_num=options.iter1, _alpha=options.alpha,
+@embed_params(_iter_num=options.iter1, _alpha=options.alpha1,
               _decay=options.decay, _beta=options.beta, _rho=options.rho)
 def auto_encode(X, _iter_num, _alpha, _decay, _beta, _rho):
     """TODO: Docstring for auto_encode.
@@ -153,7 +153,7 @@ def auto_encode(X, _iter_num, _alpha, _decay, _beta, _rho):
 
     """
     input_n = X.shape[1]
-    hidden_n = X.shape[1]*0.4
+    hidden_n = X.shape[1]*0.5
     m = X.shape[1]
     in_out_degree = [input_n, hidden_n, input_n]
     init_params   = initial_params(in_out_degree)
@@ -264,12 +264,14 @@ def be_onefold(matrix, axis):
 
     """
     maximun = numpy.amax(matrix, axis)
+    print matrix
+    print maximun
 
     return numpy.equal(matrix.T, maximun.T).T
 
 
 @log_time
-@embed_params(_iter_num=options.iter2, _alpha=options.alpha,
+@embed_params(_iter_num=options.iter2, _alpha=options.alpha2,
               _decay=options.decay, _beta=options.beta, _rho=options.rho)
 def softmax_classify(X, y, _iter_num,
                 _alpha, _decay, _beta, _rho):
@@ -361,7 +363,7 @@ def predict_dl(X, params):
 
 @log_time
 @embed_params(_iter_num=options.iter3,
-              _alpha=options.alpha, _decay=options.decay)
+              _alpha=options.alpha3, _decay=options.decay)
 def deep_learn(X, y, layer, _iter_num, _alpha, _decay):
     """TODO: Docstring for deep_learn.
 
@@ -407,9 +409,9 @@ def deep_learn(X, y, layer, _iter_num, _alpha, _decay):
 
     print 'Training time of sparse linear decoder: %f minutes.' \
             %((time() - start_time) / 60.0)
-    print 'The accuracy of sm: %f %% (threshold used)' \
+    print 'The accuracy of dl: %f %% (threshold used)' \
             % (assess(y, be_onefold(predict_dl(X, finale), 1), 1))
-    print 'The accuracy of sm: %f %% (abs used)' \
+    print 'The accuracy of dl: %f %% (abs used)' \
             % (assess(y, be_onefold(predict_dl(X, finale), 1), 2))
 
 
@@ -447,11 +449,11 @@ def get_feature(fh):
     :returns: TODO
 
     """
-    processed = re.sub('\'.*\'|\".*\"|[\*#].*|//.*|\"{3}.*|\'{3}.*|\w*_\w*',
+    processed = re.sub('\'.*\'|\".*\"|[\*#].*|//.*|\"{3}.*|\'{3}.*|\w+\s*[!=<>:;]+|\w*_\w*|.*[A-Z].*',
                        '', fh.read())
 
     all_words = [x for x in re.findall('[a-z]+', processed)
-                 if len(x) > 1 and len(x) <= 10]
+                 if len(x) > 1 and len(x) <= 20]
 
     return dict(((word, 1) for word in all_words))
 
