@@ -322,24 +322,44 @@ def softmax_classify(X, y, _iter_num,
     return params[:2]
 
 
-def stack_aes(layer):
+def stack_aes(X, y, layer):
     """TODO: Docstring for stack_aes.
 
     :layer: TODO
     :returns: TODO
 
     """
-    X, y = load_data()
-    weights, biases = [], []
+    params = []
     for i in range(layer):
         weight, bias = auto_encode(X)
-        weights.append(weight)
-        biases.append(bias)
+        params.append(weight)
+        params.append(bias)
         X = sigmoid(numpy.dot(X, weight) + bias)
 
     weight, bias = softmax_classify(X, y)
-    weights.append(weight)
-    biases.append(bias)
+    params.append(weight)
+    params.append(bias)
+
+    return params
+
+
+@log_time
+@embed_params(_iter_num=options.iter1,
+              _alpha=options.alpha, _decay=options.decay)
+def deep_learn(X, y, layer, _iter_num, _alpha, _decay):
+    """TODO: Docstring for deep_learn.
+
+    :X: TODO
+    :y: TODO
+    :_iter_num: TODO
+    :_alpha: TODO
+    :_decay: TODO
+    :returns: TODO
+
+    """
+    params = stack_aes(X, y, layer)
+
+    print len(params)
 
 
 def fill_feature_dict(folder, exclude_file=[]):
@@ -377,7 +397,7 @@ def get_feature(fh):
     :returns: TODO
 
     """
-    processed = re.sub('\w+\s*[!=<>:;]|\'.*\'|\".*\"|[\*#].*|//.*',
+    processed = re.sub('\'.*\'|\".*\"|[\*#].*|//.*|\"{3}.*|\'{3}.*|\w*_\w*',
                        '', fh.read())
 
     all_words = [x for x in re.findall('[a-z]+', processed)
@@ -386,7 +406,7 @@ def get_feature(fh):
     return dict(((word, 1) for word in all_words))
 
 
-def parse_files(src_folder, exclude_file=[]):
+def parse_files(src_folder, tt, exclude_file=[]):
     """TODO: Docstring for parse_files.
 
     :folder: TODO
@@ -411,26 +431,32 @@ def parse_files(src_folder, exclude_file=[]):
     print 'The number of keywords: %d' % (len(keywords))
     print 'The number of label: %d' % (len(all_extension))
 
-    sio.savemat(join(PARAM_FOLDER, 'sample'), {
+    with open('all_keywords.txt', 'w') as tmp:
+        tmp.write(str(all_keywords))
+
+    with open('all_extension.txt', 'w') as tmp:
+        tmp.write(str(all_extension))
+
+    sio.savemat(tt+'_sample', {
             'input': X, 'label': y,
             })
-    sio.savemat(join(PARAM_FOLDER, 'ae_extension'), {
+    sio.savemat(tt+'_extension', {
             'all_extension': all_extension,
             })
-    sio.savemat(join(PARAM_FOLDER, 'ae_keyword'), {
+    sio.savemat(tt+'_keyword', {
             'all_keywords': all_keywords,
             })
 
     return numpy.array(X), numpy.array(y)
 
 
-def load_data():
+def load_data(fn):
     """TODO: Docstring for parse_multi_file.
     :returns: TODO
 
     """
     result = {}
-    sio.loadmat(join(PARAM_FOLDER, 'sample'), mdict=result)
+    sio.loadmat(fn, mdict=result)
     X, y = result['input'], result['label']
 
     return numpy.array(X), numpy.array(y)
@@ -458,22 +484,30 @@ def main():
 
     init_dir()
 
-    if options.task == 'autoencoder':
+    if options.task == 'ae':
         print 'Training autoencoder.'
-        X, y = load_data()
+        X, y = load_data(join(PARAM_FOLDER, options.task+'_sample'))
         print 'Shape of X: %s; Shape of y: %s' % (X.shape, y.shape)
         auto_encode(X)
     elif options.task == 'parse_files':
-        parse_files('./train/ae')
+        parse_files(options.src, join(PARAM_FOLDER, options.tt))
     elif options.task == 'visualization':
         visualize_auto_encoder(options)
-    elif options.task == 'stack_aes':
-        stack_aes(2)
-    elif options.task == 'softmax':
+    elif options.task == 'saes':
+        print 'Training stacked auto encoder.'
+        X, y = load_data(join(PARAM_FOLDER, options.task+'_sample'))
+        print 'Shape of X: %s; Shape of y: %s' % (X.shape, y.shape)
+        stack_aes(X, y, 2)
+    elif options.task == 'sm':
         print 'Training softmax_classifier.'
-        X, y = load_data()
+        X, y = load_data(join(PARAM_FOLDER, options.task+'_sample'))
         print 'Shape of X: %s; Shape of y: %s' % (X.shape, y.shape)
         softmax_classify(X, y)
+    elif options.task == 'dl':
+        print 'Training deep neural network.'
+        X, y = load_data(join(PARAM_FOLDER, options.task+'_sample'))
+        print 'Shape of X: %s; Shape of y: %s' % (X.shape, y.shape)
+        deep_learn(X, y, 2)
     else:
         print 'Routine.'
         X, y = load_data('./train/softmax/', options)

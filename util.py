@@ -26,11 +26,7 @@ def get_options():
     parser = OptionParser(usage=USAGE, version=VERSION)
 
     parser.add_option('-f', '--feature', action='store', type='int',
-            help='The number of raw feature', default=FILESIZE,
-            dest='n')
-    parser.add_option('-t', '--target', action='store', type='int',
-            help='The number of target feature', default=TARGET,
-            dest='target_n')
+            help='The number of raw feature', default=FILESIZE, dest='n')
     parser.add_option('--i1', action='store', type='int',
             help='The number of iteration for ae', default=ITERATION,
             dest='iter1')
@@ -38,19 +34,20 @@ def get_options():
             help='The number of iteration for sm', default=ITERATION,
             dest='iter2')
     parser.add_option('-w', '--weightdecay', action='store', type='float',
-            help='The speed of weight decay', default=WEIGHT,
-            dest='decay')
+            help='The speed of weight decay', default=WEIGHT, dest='decay')
     parser.add_option('-r', '--rho', action='store', type='float',
-            help='The mean of activation', default=RHO,
-            dest='rho')
+            help='The mean of activation', default=RHO, dest='rho')
     parser.add_option('-l', '--learningrate', action='store', type='float',
-            help='The speed of learning', default=ALPHA,
-            dest='alpha')
+            help='The speed of learning', default=ALPHA, dest='alpha')
     parser.add_option('-s', '--sparsity', action='store', type='float',
             help='The value of sparsity parameter', default=SPARSITY,
             dest='beta')
     parser.add_option('-T', '--task', action='store', type='string',
             help='The task.', default='', dest='task')
+    parser.add_option('-t', '--target', action='store', type='string',
+            help='The task parsed file will be used for.', dest='tt')
+    parser.add_option('--src', action='store', type='string',
+            help='Source folder.', dest='src')
     parser.add_option('-d', '--tf', action='store', type='string',
             help='The directory.', default='./train/', dest='target_folder')
     parser.add_option('-m', '--multi', action='store_true', dest='multi',
