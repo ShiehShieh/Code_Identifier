@@ -1,24 +1,23 @@
 MachineLearning
 ===============
 
-FileTypeIdentifier: A machin learning algorithem used to automatically identify which type of programming language is the file written by.
+FileTypeIdentifier: A machin learning algorithem used to automatically identify which type of programming language the file written by.
 
 Requirement
------------
+===========
 
-You may use either MATLAB or Octave (>= 3.2.0).
+Python module: theano, numpy, scipy    
 
-Startup
----
+    (sudo) pip install theano numpy scipy
 
-Run your Octave-cli or Octave-gui.
+Usage
+=====
 
-Overview
---------
+Now, you can run the script by following command:    
 
-* use parse_file.py to create your training example or the dataset for a batch of files.  
+    python inspector.py
 
-    ./parse_file.py --help
+and follow the help message(The usage part.).
 
-* run your Octave-cli, and then use 'train', 'test', 'identify' to finish the task.
+PS: The usage of this tool is still a little bit trick, and it should be more user-friendly in the near feature.
 
