@@ -183,20 +183,20 @@ def auto_encode(X, _iter_num, _alpha, _decay, _beta, _rho):
 
     start_time = time()
 
-    params = gradient_descent(cost_func_ae, init_params, _iter_num, _alpha)
+    finale = gradient_descent(cost_func_ae, init_params, _iter_num, _alpha)
 
     print 'Training time of sparse linear decoder: %f minutes.' \
             %((time() - start_time) / 60.0)
     print 'The accuracy of ae: %f %% (threshold used)' \
-            % (assess(X, predict_sae(X, params), 1))
+            % (assess(X, predict_sae(X, finale), 1))
     print 'The accuracy of ae: %f %% (abs used)' \
-            % (assess(X, predict_sae(X, params), 2))
+            % (assess(X, predict_sae(X, finale), 2))
 
     # sio.savemat('./param/ae_weight_bias', {
     #         'weight': params[0], 'bias': params[1],
     #         })
 
-    return params[:2]
+    return finale[:2]
 
 
 # Under construction.
@@ -264,8 +264,6 @@ def be_onefold(matrix, axis):
 
     """
     maximun = numpy.amax(matrix, axis)
-    print matrix
-    print maximun
 
     return numpy.equal(matrix.T, maximun.T).T
 
@@ -413,6 +411,8 @@ def deep_learn(X, y, layer, _iter_num, _alpha, _decay):
             % (assess(y, be_onefold(predict_dl(X, finale), 1), 1))
     print 'The accuracy of dl: %f %% (abs used)' \
             % (assess(y, be_onefold(predict_dl(X, finale), 1), 2))
+
+    return finale
 
 
 def fill_feature_dict(folder):
@@ -568,16 +568,16 @@ def main():
         print 'Shape of X: %s; Shape of y: %s' % (X.shape, y.shape)
         deep_learn(X, y, 2)
     else:
-        X, y = load_data(join(PARAM_FOLDER, 'sm_sample'))
-        params = softmax_classify(X, y)
+        X, y = load_data(join(PARAM_FOLDER, 'dl_sample'))
+        params = deep_learn(X, y, 2)
         test_X, test_y = load_data(join(PARAM_FOLDER, 'test_sample'))
 
         print '----------'
-        print test_y
-        print be_onefold(predict_dl(test_X, params), 1)
-        print 'The accuracy of sm: %f %% (threshold used)' \
+        # print test_y
+        # print be_onefold(predict_dl(test_X, params), 1)
+        print 'The accuracy of dl: %f %% (threshold used)' \
                 % (assess(test_y, be_onefold(predict_dl(test_X, params), 1), 1))
-        print 'The accuracy of sm: %f %% (abs used)' \
+        print 'The accuracy of dl: %f %% (abs used)' \
                 % (assess(test_y, be_onefold(predict_dl(test_X, params), 1), 2))
 
 

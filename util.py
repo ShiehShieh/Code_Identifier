@@ -1,9 +1,10 @@
+import sys
 from time import time
 from functools import wraps
 from optparse import OptionParser
 
 
-USAGE   = "usage: %prog [options] arg1 arg2"
+USAGE   = "usage: e.g. python %prog code_identifier.py --i1 15 --i2 6000 --i3 20 --alpha1 0.005 --alpha2 0.01 --alpha3 0.005"
 VERSION = 'v1.0.0'
 
 
@@ -59,6 +60,8 @@ def get_options():
     parser.add_option('-m', '--multi', action='store_true', dest='multi',
             help='If this symbol is set, train the algorithem by all file \
             in this directory.')
+
+    len(sys.argv) == 1 and exit(parser.print_help())
 
     return parser.parse_args()
 
