@@ -15,7 +15,7 @@ Usage
 
 Now, you can run the script by following command:    
 
-    python inspector.py
+    python code_identifier.py
 
 and follow the help message(The usage part.).
 
