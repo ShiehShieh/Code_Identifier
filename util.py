@@ -27,6 +27,8 @@ def get_options():
 
     parser.add_option('-f', '--feature', action='store', type='int',
             help='The number of raw feature', default=FILESIZE, dest='n')
+    parser.add_option('--feature_type', action='store', type='string',
+            help='Keyword Or Byte', default='keyword', dest='feature_type')
     parser.add_option('--i1', action='store', type='int',
             help='The number of iteration for ae', default=ITERATION,
             dest='iter1')

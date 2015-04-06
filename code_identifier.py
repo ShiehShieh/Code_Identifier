@@ -458,8 +458,8 @@ def get_feature(fh):
     return dict(((word, 1) for word in all_words))
 
 
-def parse_files(src_folder, tt, all_keywords=None, all_extension=None):
-    """TODO: Docstring for parse_files.
+def parse_file_key(src_folder, tt, all_keywords=None, all_extension=None):
+    """TODO: Docstring for parse_file_key.
 
     :folder: TODO
     :returns: TODO
@@ -499,6 +499,42 @@ def parse_files(src_folder, tt, all_keywords=None, all_extension=None):
     with open(join(PARAM_FOLDER, 'keyword'), 'w') as tmp:
         tmp.write(json.dumps(all_keywords))
 
+    return numpy.array(X), numpy.array(y)
+
+
+def parse_file_byte(src_folder, tt, all_keywords=None, all_extension=None):
+    """TODO: Docstring for parse_file_byte.
+
+    :returns: TODO
+
+    """
+    X, y = [], []
+    all_files = [x for x in listdir(src_folder) if x[0] != '.']
+    if all_extension is None:
+        temp = [splitext(x)[1] for x in all_files if x[0] != '.']
+        all_extension = list(set(temp))
+    all_extension = sorted(all_extension)
+
+    for one in all_files:
+        index = operator.indexOf(all_extension, splitext(one)[1])
+        with open(join(src_folder, one), 'r') as fh:
+            feature = [ord(i) for i in fh.read()[:900]]
+        X.append(feature)
+        y.append([int(i == index) for i in range(len(all_extension))])
+
+    print 'The number of feature: %d' % (900)
+    print 'The number of label: %d' % (len(all_extension))
+
+    with open('all_extension.txt', 'w') as tmp:
+        tmp.write(str(all_extension))
+
+    sio.savemat(tt+'_sample', {
+            'input': X, 'label': y,
+            })
+    with open(join(PARAM_FOLDER, 'extension'), 'w') as tmp:
+        tmp.write(json.dumps(all_extension))
+    with open(join(PARAM_FOLDER, 'keyword'), 'w') as tmp:
+        tmp.write(json.dumps(all_keywords))
 
     return numpy.array(X), numpy.array(y)
 
@@ -512,7 +548,7 @@ def load_data(fn):
     sio.loadmat(fn, mdict=result)
     X, y = result['input'], result['label']
 
-    return numpy.array(X), numpy.array(y)
+    return X, y
 
 
 def init_dir():
@@ -537,19 +573,24 @@ def main():
 
     init_dir()
 
+    if options.feature_type == 'keyword':
+        parse_file = parse_file_key
+    else:
+        parse_file = parse_file_byte
+
     if options.task == 'ae':
         print 'Training autoencoder.'
         X, y = load_data(join(PARAM_FOLDER, options.task+'_sample'))
         print 'Shape of X: %s; Shape of y: %s' % (X.shape, y.shape)
         auto_encode(X)
     elif options.task == 'pfn':
-        parse_files(options.src, join(PARAM_FOLDER, options.tt))
+        parse_file(options.src, join(PARAM_FOLDER, options.tt))
     elif options.task == 'pfo':
         with open(join(PARAM_FOLDER, 'keyword'), 'r') as tmp:
             key = json.load(tmp)
         with open(join(PARAM_FOLDER, 'extension'), 'r') as tmp:
             ext = json.load(tmp)
-        parse_files(options.src, join(PARAM_FOLDER, options.tt), dict(key), ext)
+        parse_file(options.src, join(PARAM_FOLDER, options.tt), dict(key), ext)
     elif options.task == 'visualization':
         visualize_auto_encoder(options)
     elif options.task == 'saes':
