@@ -458,6 +458,27 @@ def get_feature(fh):
     return dict(((word, 1) for word in all_words))
 
 
+def precision_recall(y, y_pred):
+    """TODO: Docstring for precision_recall.
+
+    :y: TODO
+    :y_pred: TODO
+    :returns: TODO
+
+    """
+    print y
+    print y_pred
+    TP = numpy.sum((y_pred==1)&(y==1))
+    FP = numpy.sum((y_pred==1)&(y==0))
+    FN = numpy.sum((y_pred==0)&(y==1))
+    print TP
+    print FP
+    print FN
+
+    print 'precision is : %f %%' % (TP / float(TP+FP))
+    print 'recall is : %f %%' % (TP / float(TP+FN))
+
+
 def parse_file_key(src_folder, tt, all_keywords=None, all_extension=None):
     """TODO: Docstring for parse_file_key.
 
@@ -614,12 +635,11 @@ def main():
         test_X, test_y = load_data(join(PARAM_FOLDER, 'test_sample'))
 
         print '----------'
-        # print test_y
-        # print be_onefold(predict_dl(test_X, params), 1)
         print 'The accuracy of dl: %f %% (threshold used)' \
                 % (assess(test_y, be_onefold(predict_dl(test_X, params), 1), 1))
         print 'The accuracy of dl: %f %% (abs used)' \
                 % (assess(test_y, be_onefold(predict_dl(test_X, params), 1), 2))
+        precision_recall(test_y, be_onefold(predict_dl(test_X, params), 1))
 
 
 if __name__ == '__main__':
