@@ -6,16 +6,17 @@ FileTypeIdentifier: A machin learning algorithem used to automatically identify 
 Requirement
 ===========
 
-Python module: theano, numpy, scipy    
+Python module: theano, numpy, scipy, scikit-learn    
 
-    (sudo) pip install theano numpy scipy
+    (sudo) pip install theano numpy scipy scikit-learn
 
 Usage
 =====
 
 Now, you can run the script by following command:    
 
-    python code_identifier.py
+    python code_identifier.py    
+    python main.py
 
 and follow the help message(The usage part.).
 
