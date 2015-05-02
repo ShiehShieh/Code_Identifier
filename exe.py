@@ -5,7 +5,6 @@
 import sys
 import pickle
 from optparse import OptionParser
-from sklearn.datasets import load_files
 
 
 USAGE   = "usage: e.g. python %prog "
@@ -19,6 +18,8 @@ def get_options():
     """
     parser = OptionParser(usage=USAGE, version=VERSION)
 
+    parser.add_option('-m', '--mode', action='store', type='string',
+                      help='The mode.', dest='mode')
     parser.add_option('-f', '--file', action='store', type='string',
                       help='The unknown file.', dest='file')
 
@@ -36,7 +37,7 @@ def main():
 
     with open(options.file, 'r') as data_file:
         data = [data_file.read()]
-    with open('./learning_result.modle', 'rb') as fd:
+    with open(options.mode, 'rb') as fd:
         result = pickle.load(fd)
         target_names = result['target_names']
         clf = result['clf']

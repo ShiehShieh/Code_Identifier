@@ -1,3 +1,4 @@
+import os
 import sys
 import pickle
 from optparse import OptionParser
@@ -43,10 +44,10 @@ def main():
     clf = Pipeline([
             ('vect', TfidfVectorizer(decode_error='ignore',
                                      min_df=0.1, max_df=0.9)),
-            ('svc', LinearSVC())])
+            ('svc', LinearSVC(dual=False))])
     parameters = {
             'vect__ngram_range': [(1,1), (1,2)],
-            'svc__C': [i*0.5 for i in range(1, 20)],
+            'svc__C': [i*0.5 for i in range(1, 10)],
             }
 
     gs_clf = GridSearchCV(clf, parameters, n_jobs=6)
@@ -63,7 +64,7 @@ def main():
                                         target_names=dataset.target_names)
     print metrics.confusion_matrix(y_test, y_pred)
 
-    with open('./learning_result.modle', 'wb') as fd:
+    with open('%s.modle' % (options.fold.replace(os.sep, '_')), 'wb') as fd:
         result = {
                 'target_names': dataset.target_names,
                 'clf': gs_clf,
