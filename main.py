@@ -51,7 +51,7 @@ def main():
             }
 
     gs_clf = GridSearchCV(clf, parameters, n_jobs=6)
-    gs_clf = gs_clf.fit(dataset.data, dataset.target)
+    gs_clf = gs_clf.fit(x_train, y_train)
 
     y_pred = gs_clf.predict(x_test)
 
@@ -60,6 +60,7 @@ def main():
 
     print 'n_samples: %d' % len(dataset.data)
     print 'test: %d' % (len(dataset.data)*0.4)
+    print 'feature: %s' % (gs_clf.best_estimator_.steps[0][1].idf_.shape)
     print metrics.classification_report(y_test, y_pred,
                                         target_names=dataset.target_names)
     print metrics.confusion_matrix(y_test, y_pred)
