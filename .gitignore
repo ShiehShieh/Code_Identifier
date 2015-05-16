@@ -25,6 +25,7 @@ png/
 *.txt
 *.mat
 *.modle
+train_file_for_sklearn.modle
 
 # training result
 learning_result.modle

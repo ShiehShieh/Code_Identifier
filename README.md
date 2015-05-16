@@ -15,10 +15,12 @@ Usage
 
 Now, you can run the script by following command:    
 
-    python code_identifier.py    
     python main.py
+    or
+    python code_identifier.py    
 
 and follow the help message(The usage part.).
+code_identifier.py is implemented with Theano, while main.py is implemented with Scikit-Learn.
 
 PS: The usage of this tool is still a little bit trick, and it should be more user-friendly in the near feature.
 
