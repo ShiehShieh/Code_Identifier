@@ -19,10 +19,12 @@ java/
 js-test/
 js/
 zip/
+png/
 
 #
 *.txt
 *.mat
+*.modle
 
 # training result
 learning_result.modle

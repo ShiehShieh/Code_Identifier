@@ -1,11 +1,14 @@
 import os
 import sys
 import pickle
+import numpy as np
+import matplotlib.pyplot as plt
 from optparse import OptionParser
 from sklearn import metrics
 from sklearn.svm import LinearSVC
 from sklearn.pipeline import Pipeline
 from sklearn.datasets import load_files
+from sklearn.metrics import accuracy_score
 from sklearn.grid_search import GridSearchCV
 from sklearn.cross_validation import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -28,6 +31,17 @@ def get_options():
     len(sys.argv) == 1 and exit(parser.print_help())
 
     return parser.parse_args()
+
+
+def plot_confusion_matrix(dataset, title='Confusion matrix', cmap=plt.cm.Blues):
+    plt.title(title)
+    plt.colorbar()
+    tick_marks = np.arange(len(dataset.target_names))
+    plt.xticks(tick_marks, dataset.target_names, rotation=45)
+    plt.yticks(tick_marks, dataset.target_names)
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
 
 
 def main():
@@ -61,6 +75,7 @@ def main():
     print 'n_samples: %d' % len(dataset.data)
     print 'test: %d' % (len(dataset.data)*0.4)
     print 'feature: %s' % (gs_clf.best_estimator_.steps[0][1].idf_.shape)
+    print 'testing accuracy: %f' % (accuracy_score(y_test, y_pred))
     print metrics.classification_report(y_test, y_pred,
                                         target_names=dataset.target_names)
     print metrics.confusion_matrix(y_test, y_pred)
