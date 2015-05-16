@@ -16,7 +16,9 @@ Usage
 Now, you can run the script by following command:    
 
     python main.py
-    or
+
+or
+
     python code_identifier.py    
 
 and follow the help message(The usage part.).
